@@ -204,6 +204,7 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char[data-state="angry-right"] [data-show~="angry-right"]{display:block}
 .char[data-state="angry-left"]  [data-show~="angry-left"] {display:block}
 .char[data-state="accept"]      [data-show~="accept"]     {display:block}
+.char[data-state="bristle"]     [data-show~="bristle"]    {display:block}
 
 /* ---------- character motion ---------- */
 @keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.055)}}
@@ -242,6 +243,18 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
   100%{transform:translateX(0) rotate(0)}
 }
 /* the body lean alone is invisible at 90px tall; the arms have to travel */
+/* Cocks back and HOLDS. Deliberately never reaches the thrust, so caving
+   cannot be mistaken for a shove that failed to move the wheel. */
+@keyframes bristle{
+  0%{transform:translateX(0) rotate(0)}
+  45%{transform:translateX(calc(-2.8px * var(--dir))) rotate(calc(-8deg * var(--dir)))}
+  100%{transform:translateX(calc(-2.4px * var(--dir))) rotate(calc(-7deg * var(--dir)))}
+}
+@keyframes bristleArms{
+  0%{transform:translateX(calc(-1px * var(--dir)))}
+  45%{transform:translateX(calc(-7.5px * var(--dir)))}
+  100%{transform:translateX(calc(-6.5px * var(--dir)))}
+}
 @keyframes shoveArms{
   0%{transform:translateX(calc(-2px * var(--dir)))}
   25%{transform:translateX(calc(-6px * var(--dir)))}
@@ -313,6 +326,15 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 }
 .char[data-state="angry-right"] .pushfx,
 .char[data-state="angry-left"] .pushfx{animation:pushfx 1s linear both}
+.char[data-state="bristle"] .body-all{
+  transform-box:fill-box;
+  transform-origin:50% 100%;
+  animation:bristle .5s ease-out both;
+}
+.char[data-state="bristle"] .shove-arms{
+  transform-box:fill-box;
+  animation:bristleArms .5s ease-out both;
+}
 .char[data-state="accept"] .body-all{
   transform-box:fill-box;
   transform-origin:50% 100%;
@@ -573,7 +595,7 @@ textarea{
     + '%HAIRBACK%'
 
     /* legs, drawn behind the torso so only the stubs show */
-    + '<g data-show="idle nervous panic doomed relieved angry-left angry-right accept stomp">'
+    + '<g data-show="idle nervous panic doomed relieved angry-left angry-right accept bristle stomp">'
       + limb('M-4.5,11 v10') + foot(-4.5,21)
       + limb('M4.5,11 v10')  + foot(4.5,21)
     + '</g>'
@@ -613,7 +635,7 @@ textarea{
       + '<g data-show="relieved">'
         + '<path class="brow" d="M-9.5,-29.6 q3,-2.6 6,0"/><path class="brow" d="M3.5,-29.6 q3,-2.6 6,0"/>'
       + '</g>'
-      + '<g data-show="angry-left angry-right">'
+      + '<g data-show="angry-left angry-right bristle">'
         + '<path class="brow" d="M-10,-32 l6.5,3.2"/><path class="brow" d="M10,-32 l-6.5,3.2"/>'
       + '</g>'
       + '<g data-show="accept">'
@@ -635,7 +657,7 @@ textarea{
       + '<g data-show="relieved">'
         + '<path class="shut" d="M-8.6,-24.6 q3.6,-3.6 7.2,0"/><path class="shut" d="M1.4,-24.6 q3.6,-3.6 7.2,0"/>'
       + '</g>'
-      + '<g data-show="angry-left angry-right">'
+      + '<g data-show="angry-left angry-right bristle">'
         + '<ellipse class="eye" cx="-5" cy="-25" rx="2.3" ry="1.35"/>'
         + '<ellipse class="eye" cx="5" cy="-25" rx="2.3" ry="1.35"/>'
       + '</g>'
@@ -650,7 +672,7 @@ textarea{
       + '<g%BANDM%>'
       + '<g data-show="idle"><path class="mouth" d="M-3.6,-17.6 q3.6,2.6 7.2,0"/></g>'
       + '<g data-show="stomp"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
-      + '<g data-show="angry-left angry-right"><path class="mouth" d="M-4,-16.6 q4,-2.9 8,0"/></g>'
+      + '<g data-show="angry-left angry-right bristle"><path class="mouth" d="M-4,-16.6 q4,-2.9 8,0"/></g>'
       + '<g data-show="accept"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
       + '<g data-show="nervous"><g class="jaw"><ellipse class="mouth-f" cx="0" cy="-17" rx="4" ry="2.8"/></g></g>'
       + '<g data-show="panic"><ellipse class="mouth-f" cx="0" cy="-17.2" rx="2.9" ry="3.3"/></g>'
@@ -669,7 +691,7 @@ textarea{
         + '<path class="xeye" d="M2.6,-28 l5.6,5.6 M8.2,-28 l-5.6,5.6"/>'
       + '</g>'
       + '<g data-show="relieved"><path class="spark" d="M12.5,-35 v-5 M12.5,-35 l4,-3.4 M12.5,-35 l-4,-3.4"/></g>'
-      + '<g data-show="angry-left angry-right">'
+      + '<g data-show="angry-left angry-right bristle">'
         + '<path class="anger" d="M10.5,-36.5 l3.6,3.6 M14.1,-36.5 l-3.6,3.6'
         + ' M10.5,-32.4 l3.6,-3.6 M14.1,-32.4 l-3.6,-3.6"/>'
       + '</g>'
@@ -682,7 +704,7 @@ textarea{
       + limb(ARM_DOWN_L) + hand(-14,9) + limb(ARM_DOWN_R) + hand(14,9)
     + '</g>'
 
-    + '<g data-show="angry-right">'
+    + '<g data-show="angry-right bristle">'
       + '<g class="pushfx"><path class="swoosh" d="M8,-18 h9 M7,4 h8"/></g>'
       + '<g class="shove-arms">'
         + limb('M-11,-4 C-3,3 9,2 17,-1')     + hand(17,-1)
@@ -765,7 +787,8 @@ textarea{
     'doomed':      ['not me', 'why me', 'oh no', 'nope', 'come on', 'unfair'],
     'angry-right': ['no way', 'nope', 'your turn'],
     'angry-left':  ['no way', 'nope', 'your turn'],
-    'accept':      ['fine', 'figures', 'ok fine']
+    'accept':      ['fine', 'figures', 'ok fine'],
+    'bristle':     ['no way', 'hang on', 'nope']
   };
 
   var BUBBLE =
@@ -1106,9 +1129,11 @@ textarea{
   /* When it fires, the picked one bristles and then does one of three things.
      A third of the time they cave, so the result only actually moves on about
      two thirds of these. */
-  /* Weighted by repetition: each push direction is twice as likely as caving,
-     so the wheel actually moves on four fifths of the tantrums. */
-  var SHOVE_OPTIONS = ['right', 'right', 'left', 'left', 'accept'];
+  /* Weighted by repetition: each push direction is three times as likely as
+     caving, so the wheel actually moves on six sevenths of the tantrums. */
+  var SHOVE_OPTIONS = ['right', 'right', 'right',
+                       'left', 'left', 'left',
+                       'accept'];
   var SHOVE_CHANCE = 0.3;  /* how often the picked one makes a fuss */
   var SHOVE_HEAVE_PCT = 0.45;   /* the heave keyframe */
   var SHOVE_BEAT   = 620;  /* let the loss land before they react */
@@ -1136,8 +1161,8 @@ textarea{
 
     SHOVE_ANIM   = animMs('angry-right', '.body-all') || 1000;
     SHOVE_HEAVE  = Math.round(SHOVE_ANIM * SHOVE_HEAVE_PCT);
-    /* let the lunge finish before the pose is replaced */
-    ACCEPT_BEAT  = SHOVE_ANIM;
+    /* the wind-up holds its pose, so this only needs to outlast it */
+    ACCEPT_BEAT  = (animMs('bristle', '.body-all') || 500) + 260;
     SHOVE_REST   = Math.max(SHOVE_STEP + 40, SHOVE_ANIM - SHOVE_HEAVE + 30);
   }
 
@@ -1212,7 +1237,7 @@ textarea{
 
     /* They square up either way; whether anything comes of it is the joke. */
     if(pick === 'accept'){
-      setState(p, 'angry-right');
+      setState(p, 'bristle');
       shoveTimer = setTimeout(function(){
         setState(p, 'accept');
         resultEl.textContent = name + ' almost passed it on. Still ' + name + '.';
