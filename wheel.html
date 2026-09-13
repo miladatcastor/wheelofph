@@ -1138,9 +1138,10 @@ textarea{
     : ['right', 'left'];
   var SHOVE_CHANCE = 0.3;  /* how often the picked one makes a fuss */
   var SHOVE_HEAVE_PCT = 0.45;   /* the heave keyframe */
-  /* Long on purpose: the result has to land, be read and be believed before
-     the tantrum arrives, or it is not a surprise. */
-  var SHOVE_BEAT   = 1900;
+  /* Long enough to read the name and believe it, short enough to stay a
+     punchline. 620ms landed before anyone had taken the result in; 1900ms
+     sagged. */
+  var SHOVE_BEAT   = 1100;
   var SHOVE_STEP   = 430;  /* how long the wheel takes to clunk round one slice */
   var SHOVE_ANIM, SHOVE_HEAVE, ACCEPT_BEAT, SHOVE_REST;
 
