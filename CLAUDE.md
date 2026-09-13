@@ -73,6 +73,10 @@ Caving used to replay the full shove lunge before slumping, so it looked like a
 push that failed to move the wheel. It now has its own wind-up that cocks the
 arms backward and never completes.
 
+Caving is currently switched off (`ALLOW_CAVE = false`), so a tantrum always
+moves the wheel. The `bristle` and `accept` poses stay in the rig and in
+`?inspect`; flip the flag to bring the outcome back.
+
 ## Adding a character
 
 Measure, don't eyeball. For each existing character the head aspect, lens box
