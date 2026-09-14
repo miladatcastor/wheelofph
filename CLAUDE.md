@@ -59,6 +59,23 @@ ended up written out as `+ CHEER +` or `+ A +`, which is a valid identifier
 reference, so `node --check` passes and the page dies on load with the wheel
 blank. Grep the diff for bare capitalised identifiers before trusting it.
 
+**Anything positioned relative to a character must be placed in *screen*
+space, not the character's own frame.** Characters are rotated with their
+slice, so a speech bubble pinned at a fixed local point swings wherever the
+slice happens to point - at about a quarter turn it landed on the face.
+`aimBubble()` rotates the desired screen offset back into local space, so the
+bubble always sits above and right of the head at any angle.
+
+**Never measure the wheel mid-transition.** Use the `rotation` variable, which
+is the target, not `liveAngle()`, which reads the matrix as it currently
+stands. This has caused two separate bugs: the shove announcing the wrong
+name, and bubbles rotated out by exactly one slice.
+
+**Mind the descendant space in the state CSS.** `.char[data-state="x"]
+[data-show~="x"]` needs the space; without it the selector matches a single
+element that has both attributes, which nothing does, and that state renders
+as a faceless blob with no error anywhere.
+
 **Never duplicate a CSS duration in JS.** `syncTimings()` reads them off the
 stylesheet at start-up; only keyframe *percentages* belong in JS. A hand-copied
 duration once truncated the cave animation to 56%, cutting it off mid-lunge.
@@ -79,7 +96,13 @@ Caving used to replay the full shove lunge before slumping, so it looked like a
 push that failed to move the wheel. It now has its own wind-up that cocks the
 arms backward and never completes.
 
-Whoever escapes gets one of four reactions - relieved, gloat, smug, cheer -
+The one who *shoved* it away gets their own pose, `gotcha-left`/`gotcha-right`
+- pointing at the slice they just landed it on, other hand on the hip. They
+were in the firing line a second ago and got out of it by putting someone else
+in, which is not the bystanders' feeling. The mirror pair exists because which
+side the victim ends up on depends on which way the wheel was shoved.
+
+Everyone else who escapes gets one of four reactions - relieved, gloat, smug, cheer -
 dealt from a shuffled deck, so with four or fewer survivors no two react the
 same way. Drawing independently gave three the same pose about half the time.
 
