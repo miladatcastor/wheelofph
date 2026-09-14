@@ -85,6 +85,12 @@ photo, and colours sampled from masked regions and then checked by pasting the
 swatch next to the face. Literal pixel values usually come out muddy — photos
 are lit, cartoons want albedo.
 
+Speech bubbles size themselves to their line. The box was a fixed 34 units
+wide and longer lines ran under the border; `fitBubble()` measures the text as
+rendered and rebuilds the box around it, so any wording added to `SAY` works
+without hand-tuning. `?inspect` renders every line and audits that each one
+fits.
+
 ## Testing notes
 
 - A background tab throttles `setTimeout` to ~1/sec and stops rAF, so live

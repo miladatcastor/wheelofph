@@ -791,11 +791,38 @@ textarea{
     'bristle':     ['no way', 'hang on', 'nope']
   };
 
+  /* The box is rebuilt around whatever the character says, so a longer line
+     cannot run under the border. Everything below is derived from these. */
+  var SAY_X0 = 13, SAY_TOP = -45, SAY_H = 18, SAY_R = 5,
+      SAY_PAD = 5, SAY_MIN_W = 26;
+
+  function bubblePath(w){
+    var x0 = SAY_X0, x1 = x0 + w, y0 = SAY_TOP, y1 = y0 + SAY_H, r = SAY_R;
+    return 'M' + (x0 + r) + ',' + y0
+         + ' H' + (x1 - r) + ' A' + r + ',' + r + ' 0 0 1 ' + x1 + ',' + (y0 + r)
+         + ' V' + (y1 - r) + ' A' + r + ',' + r + ' 0 0 1 ' + (x1 - r) + ',' + y1
+         + ' H' + (x0 + 11) + ' L' + x0 + ',-19 L' + (x0 + 6) + ',' + y1
+         + ' H' + (x0 + r) + ' A' + r + ',' + r + ' 0 0 1 ' + x0 + ',' + (y1 - r)
+         + ' V' + (y0 + r) + ' A' + r + ',' + r + ' 0 0 1 ' + (x0 + r) + ',' + y0 + ' Z';
+  }
+
+  /* Measures the line as actually rendered, so it holds for any font or any
+     wording added later. Falls back to an estimate if the node is not laid
+     out yet (a hidden group reports zero). */
+  function fitBubble(g){
+    var t = g.querySelector('.say-text');
+    var len = 0;
+    try { len = t.getComputedTextLength(); } catch(e) { len = 0; }
+    if(!len) len = t.textContent.length * 4.6;
+    var w = Math.max(SAY_MIN_W, len + SAY_PAD * 2);
+    g.querySelector('.say-box').setAttribute('d', bubblePath(w));
+    t.setAttribute('x', SAY_X0 + w / 2);
+    return w;
+  }
+
   var BUBBLE =
       '<g class="bubble-aim"><g class="bubble">'
-    + '<path class="say-box" d="M18,-45 H42 A5,5 0 0 1 47,-40 V-32'
-    + ' A5,5 0 0 1 42,-27 H24 L13,-19 L19,-27 H18'
-    + ' A5,5 0 0 1 13,-32 V-40 A5,5 0 0 1 18,-45 Z"/>'
+    + '<path class="say-box" d="' + bubblePath(34) + '"/>'
     + '<text class="say-text" x="30" y="-35.5">?</text>'
     + '</g></g>';
 
@@ -1008,16 +1035,21 @@ textarea{
     if(!el) return;
     el.setAttribute('data-state', state);
 
+    speak(el, state, index);
+  }
+
+  /* Give the character its line, size the box to it, and swing the bubble
+     level - the winner can be tilted by up to half a slice. */
+  function speak(el, state, index){
     var lines = SAY[state];
-    if(lines){
-      var g = el.querySelector('[data-show~="' + state + '"] .bubble-aim');
-      if(g){
-        g.querySelector('.say-text').textContent =
-          lines[Math.floor(Math.random() * lines.length)];
-        var net = index * 360 / characters.length + liveAngle();
-        g.setAttribute('transform', 'rotate(' + (-net).toFixed(1) + ' 13 -19)');
-      }
-    }
+    if(!lines) return;
+    var g = el.querySelector('[data-show~="' + state + '"] .bubble-aim');
+    if(!g) return;
+    g.querySelector('.say-text').textContent =
+      lines[Math.floor(Math.random() * lines.length)];
+    fitBubble(g);
+    var net = index * 360 / characters.length + liveAngle();
+    g.setAttribute('transform', 'rotate(' + (-net).toFixed(1) + ' ' + SAY_X0 + ',-19)');
   }
 
   /* ---------- rendering ---------- */
@@ -1464,7 +1496,7 @@ textarea{
      render on the wheel. Nearly every art bug in this file was invisible
      at 300px and obvious here, so it ships with the page.
   ------------------------------------------------------------------ */
-  function cell(src, state, atFraction, px, label){
+  function cell(src, state, atFraction, px, label, say){
     var box = document.createElement('div');
     box.className = 'ins-cell';
     box.style.width = px + 'px';
@@ -1475,7 +1507,13 @@ textarea{
     g.setAttribute('data-state', state);
     g.setAttribute('style', src.getAttribute('style'));
     var aim = g.querySelector('[data-show~="' + state + '"] .bubble-aim');
-    if(aim) aim.removeAttribute('transform');   /* show it level, as the user sees it */
+    if(aim){
+      aim.removeAttribute('transform');   /* show it level, as the user sees it */
+      if(SAY[state]){
+        aim.querySelector('.say-text').textContent = say != null ? say : SAY[state][0];
+        aim.setAttribute('data-refit', '');   /* sized once it is in the document */
+      }
+    }
     box.querySelector('svg').appendChild(g);
     if(atFraction != null){
       var secs = -(atFraction * (animMs(state, '.body-all') || 1000) / 1000);
@@ -1507,6 +1545,28 @@ textarea{
     return hits.filter(function(v, i, a){ return a.indexOf(v) === i; });
   }
 
+  function bubbleAudit(){
+    var bad = [], host = charEls[0];
+    if(!host) return ['no characters to measure'];
+    var was = host.getAttribute('data-state');
+    Object.keys(SAY).forEach(function(st){
+      host.setAttribute('data-state', st);
+      var g = host.querySelector('[data-show~="' + st + '"] .bubble-aim');
+      if(!g){ bad.push(st + ': no bubble'); return; }
+      var t = g.querySelector('.say-text');
+      SAY[st].forEach(function(line){
+        t.textContent = line;
+        var w = fitBubble(g), len = t.getComputedTextLength();
+        if(len > w - SAY_PAD * 2 + 0.5){
+          bad.push(st + ' "' + line + '" overflows by '
+                   + (len - (w - SAY_PAD * 2)).toFixed(1));
+        }
+      });
+    });
+    host.setAttribute('data-state', was);
+    return bad;
+  }
+
   function inspect(){
     var page = document.createElement('div');
     page.className = 'inspect';
@@ -1522,20 +1582,37 @@ textarea{
       page.appendChild(line);
     }
 
-    var audit = transformAudit();
-    var warn = document.createElement('p');
-    warn.className = 'ins-audit' + (audit.length ? ' bad' : '');
-    warn.textContent = audit.length
-      ? 'transform trap: ' + audit.length + ' element(s) carry both an SVG '
-        + 'transform attribute and a CSS animation - ' + audit.join(' | ')
-      : 'transform audit clean - no element carries both an SVG transform '
-        + 'attribute and a CSS animation.';
-    page.appendChild(warn);
+    function note(bad, okText, badText){
+      var p = document.createElement('p');
+      p.className = 'ins-audit' + (bad.length ? ' bad' : '');
+      p.textContent = bad.length ? badText + ' - ' + bad.join(' | ') : okText;
+      page.appendChild(p);
+    }
+
+    note(transformAudit(),
+         'transform audit clean - no element carries both an SVG transform '
+         + 'attribute and a CSS animation.',
+         'transform trap');
+
+    var speech = bubbleAudit();
+    note(speech,
+         'speech audit clean - all ' + Object.keys(SAY).reduce(function(n, k){
+            return n + SAY[k].length; }, 0)
+         + ' lines fit inside their bubble.',
+         'speech overflows the bubble');
 
     ALL_STATES.forEach(function(st){
       row(st + ' - every character, true wheel size', function(line){
         charEls.forEach(function(src, i){
           line.appendChild(cell(src, st, null, 132, names[i]));
+        });
+      });
+    });
+
+    Object.keys(SAY).forEach(function(st){
+      row(st + ' - every line it can say', function(line){
+        SAY[st].forEach(function(txt){
+          line.appendChild(cell(charEls[0], st, null, 150, '"' + txt + '"', txt));
         });
       });
     });
@@ -1556,6 +1633,8 @@ textarea{
 
     document.body.innerHTML = '';
     document.body.appendChild(page);
+    /* now they are laid out, the boxes can be measured and sized */
+    page.querySelectorAll('[data-refit]').forEach(fitBubble);
     document.title = 'Name Wheel - inspect';
   }
 
