@@ -76,6 +76,13 @@ name, and bubbles rotated out by exactly one slice.
 element that has both attributes, which nothing does, and that state renders
 as a faceless blob with no error anywhere.
 
+**`transitionend` bubbles.** The listener that ends a spin lives on `.wheel`,
+so without a `e.target === wheel` check *any* transition on *anything* inside
+the wheel ends the spin. Adding a 0.7s transition to the characters was enough:
+it landed 40ms before `launch()` and settled the wheel without it ever turning.
+Note this cannot be reproduced in a background tab, where transitions never run
+at all - dispatch a synthetic bubbling `transitionend` to test it.
+
 **Never duplicate a CSS duration in JS.** `syncTimings()` reads them off the
 stylesheet at start-up; only keyframe *percentages* belong in JS. A hand-copied
 duration once truncated the cave animation to 56%, cutting it off mid-lunge.

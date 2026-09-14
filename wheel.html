@@ -1516,8 +1516,12 @@ textarea{
     }
   }
 
+  /* transitionend BUBBLES. Without the target check, any transition on
+     anything inside the wheel ends the spin - the ring releasing its hold at
+     0.7s was landing 40ms before launch() and settling the wheel without it
+     ever turning. Only the wheel's own transform may stop a spin. */
   wheel.addEventListener('transitionend', function(e){
-    if(e.propertyName === 'transform') stop();
+    if(e.target === wheel && e.propertyName === 'transform') stop();
   });
 
   /* ---------- photos ---------- */
