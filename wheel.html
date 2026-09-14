@@ -1129,12 +1129,11 @@ textarea{
   /* When it fires, the picked one bristles and then does one of three things.
      A third of the time they cave, so the result only actually moves on about
      two thirds of these. */
-  /* Caving is off: a tantrum always moves the wheel. Flip ALLOW_CAVE back to
-     true to restore it - the bristle and accept poses are still in the rig.
-     Weighted by repetition when it is on. */
-  var ALLOW_CAVE = false;
+  /* An even three-way split: push right, push left, or cave. Set ALLOW_CAVE
+     to false to drop caving, leaving a straight 50/50 between the pushes. */
+  var ALLOW_CAVE = true;
   var SHOVE_OPTIONS = ALLOW_CAVE
-    ? ['right', 'right', 'right', 'left', 'left', 'left', 'accept']
+    ? ['right', 'left', 'accept']
     : ['right', 'left'];
   var SHOVE_CHANCE = 0.3;  /* how often the picked one makes a fuss */
   var SHOVE_HEAVE_PCT = 0.45;   /* the heave keyframe */
