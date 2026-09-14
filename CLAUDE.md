@@ -53,6 +53,12 @@ string, so anything it references must go through a `%TOKEN%` replaced inside
 syntax check passes clean. This caused an empty shirt-stripe clip and
 invisible speech bubbles.
 
+**Patching this file with a substitution script? Do not let the script's own
+variables leak into the emitted JavaScript.** Twice now a Python local has
+ended up written out as `+ CHEER +` or `+ A +`, which is a valid identifier
+reference, so `node --check` passes and the page dies on load with the wheel
+blank. Grep the diff for bare capitalised identifiers before trusting it.
+
 **Never duplicate a CSS duration in JS.** `syncTimings()` reads them off the
 stylesheet at start-up; only keyframe *percentages* belong in JS. A hand-copied
 duration once truncated the cave animation to 56%, cutting it off mid-lunge.
@@ -72,6 +78,10 @@ Two poses that lead to different outcomes must look different *from the start*.
 Caving used to replay the full shove lunge before slumping, so it looked like a
 push that failed to move the wheel. It now has its own wind-up that cocks the
 arms backward and never completes.
+
+Whoever escapes gets one of four reactions - relieved, gloat, smug, cheer -
+dealt from a shuffled deck, so with four or fewer survivors no two react the
+same way. Drawing independently gave three the same pose about half the time.
 
 Every landing ends one of exactly three ways, with equal odds: push right,
 push left, or cave. There is deliberately no probability gate on top and no
@@ -97,7 +107,7 @@ fits.
 - A background tab throttles `setTimeout` to ~1/sec and stops rAF, so live
   timing measurements taken from a hidden tab are worthless. Reason from the
   constants instead, or bring the tab to the front.
-- `setState` calls `Math.random()` for bubble lines. If you stub randomness to
-  force a branch, that call is in the sequence and will shift your indices.
-  The order for one spin is: duration, turns, angle, winner's bubble, outcome
-  pick, then a bubble per subsequent state change.
+- Do not stub `Math.random()` by index. The call order shifts whenever a state
+  gains a speech bubble or `settle()` needs another shuffled deck of
+  reactions, and it has silently invalidated tests twice. Wrap it and log the
+  calls first to learn the current order, or force an outcome some other way.
