@@ -73,9 +73,10 @@ Caving used to replay the full shove lunge before slumping, so it looked like a
 push that failed to move the wheel. It now has its own wind-up that cocks the
 arms backward and never completes.
 
-A tantrum picks evenly between pushing right, pushing left and caving, so the
-wheel moves on two thirds of them. `ALLOW_CAVE = false` drops caving and leaves
-a straight 50/50 between the pushes.
+Every landing ends one of exactly three ways, with equal odds: push right,
+push left, or cave. There is deliberately no probability gate on top and no
+no-repeat rule - both existed once and made the behaviour impossible to reason
+about or to see. Resist adding a layer here.
 
 ## Adding a character
 
@@ -98,5 +99,5 @@ fits.
   constants instead, or bring the tab to the front.
 - `setState` calls `Math.random()` for bubble lines. If you stub randomness to
   force a branch, that call is in the sequence and will shift your indices.
-  The order for one spin is: duration, turns, angle, winner's bubble,
-  `shouldShove`, outcome pick, then a bubble per subsequent state change.
+  The order for one spin is: duration, turns, angle, winner's bubble, outcome
+  pick, then a bubble per subsequent state change.

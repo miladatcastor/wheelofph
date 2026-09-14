@@ -483,9 +483,9 @@ textarea{
       </div>
       <label class="opt" for="sore">
         <input type="checkbox" id="sore" checked>
-        <span>Sore losers &mdash; whoever gets picked will sometimes square up and
-        shove the wheel a notch left or right, landing a neighbour in it. Or
-        think better of it and take the hit.</span>
+        <span>Sore losers &mdash; whoever gets picked squares up and either
+        shoves the wheel a notch left or right, landing a neighbour in it, or
+        thinks better of it and takes the hit. Even odds on all three.</span>
       </label>
       <input type="file" id="file" accept="image/*" hidden>
   </aside>
@@ -543,7 +543,6 @@ textarea{
   var stompTimer= 0;
   var holdTimer= 0;
   var shoveTimer= 0;
-  var lastShoved = false;
 
   function mod(a,n){ return ((a % n) + n) % n; }
   function f(n){ return Math.round(n*100)/100; }
@@ -1161,13 +1160,8 @@ textarea{
   /* When it fires, the picked one bristles and then does one of three things.
      A third of the time they cave, so the result only actually moves on about
      two thirds of these. */
-  /* An even three-way split: push right, push left, or cave. Set ALLOW_CAVE
-     to false to drop caving, leaving a straight 50/50 between the pushes. */
-  var ALLOW_CAVE = true;
-  var SHOVE_OPTIONS = ALLOW_CAVE
-    ? ['right', 'left', 'accept']
-    : ['right', 'left'];
-  var SHOVE_CHANCE = 0.3;  /* how often the picked one makes a fuss */
+  /* Every landing ends one of these three ways, evenly. */
+  var SHOVE_OPTIONS = ['right', 'left', 'accept'];
   var SHOVE_HEAVE_PCT = 0.45;   /* the heave keyframe */
   /* Long enough to read the name and believe it, short enough to stay a
      punchline. 620ms landed before anyone had taken the result in; 1900ms
@@ -1261,17 +1255,13 @@ textarea{
   }
 
   function shouldShove(){
-    return soreEl.checked
-      && characters.length >= 2
-      && !lastShoved
-      && Math.random() < SHOVE_CHANCE;
+    return soreEl.checked && characters.length >= 2;
   }
 
   /* The gag: the picked one shoves the wheel on one notch, so the neighbour
      slides under the pointer and wears it instead. Deliberately loud — the
      result line says what happened, or it just looks like a bug. */
   function shove(p){
-    lastShoved = true;
     var n = characters.length;
     var name = characters[p].name;
     var pick = SHOVE_OPTIONS[Math.floor(Math.random() * SHOVE_OPTIONS.length)];
@@ -1327,7 +1317,6 @@ textarea{
       clearTimeout(shoveTimer);
       shoveTimer = setTimeout(function(){ shove(p); }, reduceMotion() ? 0 : SHOVE_BEAT);
     }else{
-      lastShoved = false;
       spinBtn.disabled = false;
     }
   }
