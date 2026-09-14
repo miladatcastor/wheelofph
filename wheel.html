@@ -1287,7 +1287,13 @@ textarea{
 
     var step = function(){
       var ms = reduceMotion() ? 0 : SHOVE_STEP;
-      rotation += dir * 360/n;
+      /* Land the victim dead centre under the pointer. A blind one-slice step
+         would carry over whatever offset the spin happened to stop at, so the
+         wheel stayed as crooked as it was before the shove. */
+      var seg = 360 / n;
+      var target = mod(-victim * seg, 360);
+      var cur = mod(rotation, 360);
+      rotation += dir > 0 ? mod(target - cur, 360) : -mod(cur - target, 360);
       wheel.style.transition = 'transform ' + ms + 'ms cubic-bezier(.34,1.28,.64,1)';
       void wheel.offsetWidth;
       wheel.style.transform = 'rotate(' + rotation + 'deg)';
