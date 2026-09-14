@@ -111,6 +111,21 @@ push left, or cave. There is deliberately no probability gate on top and no
 no-repeat rule - both existed once and made the behaviour impossible to reason
 about or to see. Resist adding a layer here.
 
+## Before the first spin
+
+Everyone closes in toward the hub, joins hands and the whole ring turns slowly
+(`ring` state, `.resting` on the wheel, `drift()`). Pressing spin hands over:
+`endDrift()` freezes the wheel where it visually is and carries on from there,
+so there is no jump and `rotation` stays the single source of truth for where
+the wheel is. An extra rotation layer would have broken `pointerIndex()`.
+
+How far in they come is worked out per list length. Note the arm reaches along
+the character's own **tangent**, not along the chord to the next character, so
+the ring radius is not simply "half the gap between them" - sizing it that way
+leaves everyone short by a factor of cos(seg/2). The formula is in `render()`.
+Hands meet properly for 5-7 names, overlap slightly above that, and fall short
+below it because the ring would otherwise sit inside the hub.
+
 ## Adding a character
 
 Measure, don't eyeball. For each existing character the head aspect, lens box

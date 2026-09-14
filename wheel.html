@@ -210,6 +210,18 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char[data-state="cheer"]       [data-show~="cheer"]      {display:block}
 .char[data-state="gotcha-right"] [data-show~="gotcha-right"]{display:block}
 .char[data-state="gotcha-left"] [data-show~="gotcha-left"] {display:block}
+.char[data-state="ring"]        [data-show~="ring"]       {display:block}
+
+/* Waiting to start, everyone closes in toward the hub and links up. --pull is
+   worked out per list length in render(), since how far in they have to come
+   for their hands to meet depends on how many of them there are. */
+.char .orbit{transform:translateY(0);transition:transform .7s cubic-bezier(.3,0,.2,1)}
+.wheel.resting .char .orbit{transform:translateY(calc(var(--pull,0) * 1px))}
+@keyframes ringBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.7px)}}
+.char[data-state="ring"] .body-all{
+  transform-box:fill-box;
+  animation:ringBob 2.6s var(--d,0s) ease-in-out infinite;
+}
 
 /* ---------- character motion ---------- */
 @keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.055)}}
@@ -595,6 +607,8 @@ textarea{
   var rafId    = 0;
   var stopTimer= 0;
   var stompTimer= 0;
+  var driftTimer= 0;
+  var DRIFT_MS  = 52000;   /* one unhurried revolution */
   var holdTimer= 0;
   var shoveTimer= 0;
 
@@ -635,7 +649,8 @@ textarea{
   var ARM_DOWN_R = 'M11,-5 q5,7 3,14';
 
   var CHAR_MARKUP =
-    '<g class="body-all">'
+    '<g class="orbit">'
+    + '<g class="body-all">'
     + '<ellipse class="shadow" cx="0" cy="23.5" rx="12" ry="3"/>'
     + '<g data-show="stomp"><g class="thud">'
       + '<ellipse class="ring" cx="0" cy="22.5" rx="11" ry="3"/>'
@@ -648,7 +663,7 @@ textarea{
     + '%HAIRBACK%'
 
     /* legs, drawn behind the torso so only the stubs show */
-    + '<g data-show="idle nervous panic doomed relieved gloat smug cheer'
+    + '<g data-show="idle nervous panic doomed relieved gloat smug cheer ring'
       + ' gotcha-left gotcha-right angry-left angry-right accept bristle stomp">'
       + limb('M-4.5,11 v10') + foot(-4.5,21)
       + limb('M4.5,11 v10')  + foot(4.5,21)
@@ -679,7 +694,7 @@ textarea{
       + '<g%BANDE%>'
 
       /* brows */
-      + '<g data-show="idle stomp">'
+      + '<g data-show="idle stomp ring">'
         + '<path class="brow" d="M-9,-30.8 h6"/><path class="brow" d="M3,-30.8 h6"/>'
       + '</g>'
       + '<g data-show="nervous panic doomed">'
@@ -697,7 +712,7 @@ textarea{
       + '</g>'
 
       /* eyes */
-      + '<g data-show="idle nervous stomp">'
+      + '<g data-show="idle nervous stomp ring">'
         + '<circle class="eye" cx="-5" cy="-25" r="1.9"/><circle class="eye" cx="5" cy="-25" r="1.9"/>'
       + '</g>'
       + '<g data-show="panic">'
@@ -724,7 +739,7 @@ textarea{
 
       /* mouths */
       + '<g%BANDM%>'
-      + '<g data-show="idle"><path class="mouth" d="M-3.6,-17.6 q3.6,2.6 7.2,0"/></g>'
+      + '<g data-show="idle ring"><path class="mouth" d="M-3.6,-17.6 q3.6,2.6 7.2,0"/></g>'
       + '<g data-show="stomp"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
       + '<g data-show="angry-left angry-right bristle"><path class="mouth" d="M-4,-16.6 q4,-2.9 8,0"/></g>'
       + '<g data-show="accept"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
@@ -759,6 +774,11 @@ textarea{
     /* arms — drawn last so they can cover the face */
     + '<g data-show="idle">'
       + limb(ARM_DOWN_L) + hand(-14,9) + limb(ARM_DOWN_R) + hand(14,9)
+    + '</g>'
+    /* waiting to start: linked up with whoever is either side */
+    + '<g data-show="ring">'
+      + limb('M-11,-4 C-23,-1 -34,0 -44,-3') + hand(-44,-3)
+      + limb('M11,-4 C23,-1 34,0 44,-3')     + hand(44,-3)
     + '</g>'
 
     + '<g data-show="angry-right bristle">'
@@ -827,7 +847,8 @@ textarea{
 
     /* Outside body-all on purpose: that group carries the doomed shake, the
        shove lean and the slump, and a shaking speech bubble cannot be read. */
-    + '%BUBBLES%';
+    + '%BUBBLES%'
+    + '</g>';
 
   /* ---------- model ---------- */
   /* Pre-drawn appearance features, chosen by the character's look.
@@ -1190,6 +1211,15 @@ textarea{
     var chordC = n === 1 ? 2*rChar  : 2*rChar  * Math.sin(Math.PI/n);
     var chordL = n === 1 ? 2*rLabel : 2*rLabel * Math.sin(Math.PI/n);
     var scale  = Math.max(0.42, Math.min(1.15, chordC/56));
+    /* Where the ring has to sit for the linking hands to actually touch. The
+       arm points along the character's own tangent, not along the chord to
+       the next one, so it is NOT simply half the gap between them - sizing it
+       that way left everyone short by a factor of cos(seg/2). */
+    var segR  = 2 * Math.PI / n;
+    var ringR = n < 2 ? rChar
+      : scale * (44 * (1 + Math.cos(segR)) / Math.sin(segR) - 3);
+    ringR = Math.min(rChar, Math.max(ringR, 38 + 24 * scale));
+    var pull = (rChar - ringR) / scale;
     var fs     = Math.max(7, Math.min(16, chordL*0.5));
 
     var out = '';
@@ -1207,6 +1237,7 @@ textarea{
            + esc(trunc(c.name)) + '</text>';
       var look = c.look || {};
       var vars = '--hue:'+c.hue+';--d:'+(i*0.37).toFixed(2)+'s'
+               + ';--pull:'+pull.toFixed(1)
                + (look.skin ? ';--skin:'+look.skin : '')
                + (look.hair  ? ';--hair:'+look.hair : '')
                + (look.beard && look.beard !== true ? ';--beard:'+look.beard : '')
@@ -1312,8 +1343,42 @@ textarea{
 
   /* The character under the pointer boots the hub; the wheel goes when the
      landing hits. With reduced motion there is nothing to wait for. */
+  /* Before the first spin: everyone closes in, joins hands and the whole ring
+     turns slowly. Uses the wheel's own transform so `rotation` stays the one
+     source of truth for where the wheel is - an extra rotation layer would
+     have put pointerIndex() out. */
+  function drift(){
+    if(spinning) return;
+    wheel.style.transition = 'transform ' + DRIFT_MS + 'ms linear';
+    void wheel.offsetWidth;
+    rotation += 360;
+    wheel.style.transform = 'rotate(' + rotation + 'deg)';
+    driftTimer = setTimeout(drift, DRIFT_MS);
+  }
+
+  function restPose(){
+    clearTimeout(driftTimer);
+    for(var i=0;i<characters.length;i++) setState(i, 'ring');
+    wheel.classList.add('resting');
+    drift();
+  }
+
+  /* Hand the drift over to the spin: freeze the wheel where it visually is,
+     then carry on from there. */
+  function endDrift(){
+    clearTimeout(driftTimer);
+    if(!wheel.classList.contains('resting')) return;
+    wheel.classList.remove('resting');
+    var live = mod(liveAngle(), 360);
+    rotation = Math.floor(rotation / 360) * 360 + live;
+    wheel.style.transition = 'none';
+    wheel.style.transform = 'rotate(' + rotation + 'deg)';
+    void wheel.offsetWidth;
+  }
+
   function spin(){
     if(spinning || !characters.length) return;
+    endDrift();
     spinning = true;
     spinBtn.disabled = true;
     resultEl.textContent = 'Spinning…';
@@ -1602,13 +1667,13 @@ textarea{
     buildCharacters(parseNames(namesEl.value));
     render();
     renderFaces();
-    if(!spinning) resultEl.textContent = 'Ready when you are.';
+    if(!spinning){ resultEl.textContent = 'Ready when you are.'; restPose(); }
   });
 
   var opening = shuffled(DEFAULT_NAMES);
   var ALL_STATES = ['idle','nervous','panic','doomed','relieved',
                     'stomp','angry-right','angry-left','bristle','accept',
-                    'gloat','smug','cheer','gotcha-right','gotcha-left'];
+                    'gloat','smug','cheer','gotcha-right','gotcha-left','ring'];
 
   /* ------------------------------------------------------------------
      ?inspect - the contact sheet.
@@ -1765,6 +1830,7 @@ textarea{
   render();
   renderFaces();
   syncTimings();
+  restPose();
 })();
 </script>
 </body>
