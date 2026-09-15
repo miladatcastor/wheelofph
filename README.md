@@ -1,8 +1,10 @@
 # Wheel of PH
 
+### ▶ Play it: **https://miladatcastor.github.io/wheelofph/**
+
 A spinning name wheel where the characters react to being chosen. Single
-self-contained HTML file — no build, no dependencies, no network. Open
-`index.html` in a browser.
+self-contained HTML file — no build, no dependencies, no network. Open the
+link above, or `index.html` in a browser.
 
 ## Using it
 
@@ -16,14 +18,19 @@ The opening arrangement is shuffled on every load.
 
 ## What happens on a spin
 
+Before anyone presses anything, the characters close in toward the hub, join
+hands and the whole ring turns slowly. Pressing spin releases them.
+
 The character under the pointer crouches and body-slams the wheel; it takes off
 on the landing frame. While it spins, fear travels round the ring — the slice
-under the pointer panics, its neighbours go nervous, everyone else idles. On
-stop the winner is doomed and the rest are relieved.
+under the pointer panics, its neighbours go nervous, everyone else idles.
 
-About a third of the time the winner then squares up and either shoves the
-wheel a notch left or right (landing a neighbour in it) or thinks better of it
-and takes the hit. Never twice in a row.
+On stop the winner is doomed, and **every** landing then ends one of exactly
+three ways, with equal odds: the winner shoves the wheel a notch right, shoves
+it a notch left (landing a neighbour in it), or squares up and thinks better of
+it. Whoever shoves it away points at the person they just landed it on.
+Everyone who escapes gets one of four reactions — relieved, gloating, smug or
+cheering — dealt so that no two of them react the same way.
 
 ## `?inspect`
 
@@ -37,7 +44,7 @@ the hair. It also runs the transform audit (below) and turns red on a hit.
 
 ## How it is put together
 
-Three seams, all of which have held up through nine states and five
+Three seams, all of which have held up through sixteen states and five
 characters:
 
 1. **`characters`** is the only source of truth — `{name, state, hue,
