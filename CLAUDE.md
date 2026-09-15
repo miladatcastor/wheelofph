@@ -1,13 +1,13 @@
 # Working on this repo
 
 A spinning name wheel whose characters react to being chosen. One
-self-contained file, `wheel.html` — no build step, no dependencies, no network
+self-contained file, `index.html` — no build step, no dependencies, no network
 calls, no framework. Keep it that way; the whole point is that it opens by
 double-clicking it and survives being emailed to someone.
 
 ## Verify with `?inspect`, not with a spin
 
-Open `wheel.html?inspect`. It renders every state on every character, frozen,
+Open `index.html?inspect`. It renders every state on every character, frozen,
 **at the size they actually render on the wheel** (~90px tall), plus
 frame-by-frame strips for the animated states.
 

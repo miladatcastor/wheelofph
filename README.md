@@ -2,7 +2,7 @@
 
 A spinning name wheel where the characters react to being chosen. Single
 self-contained HTML file — no build, no dependencies, no network. Open
-`wheel.html` in a browser.
+`index.html` in a browser.
 
 ## Using it
 
@@ -27,7 +27,7 @@ and takes the hit. Never twice in a row.
 
 ## `?inspect`
 
-Open `wheel.html?inspect` for the contact sheet: every state on every
+Open `index.html?inspect` for the contact sheet: every state on every
 character, frozen, at the size they actually render on the wheel, plus
 frame-by-frame strips for the animated ones.
 
