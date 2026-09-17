@@ -1418,15 +1418,22 @@ textarea{
   function launch(){
     if(!spinning) return;
     wheel.classList.add('spinning');
-    var dur = 5500 + Math.random()*2500;
-    rotation += 360*(5 + Math.floor(Math.random()*4)) + Math.random()*360;
+    var dur = 4800 + Math.random()*1200;
+    rotation += 360*(7 + Math.floor(Math.random()*4)) + Math.random()*360;
 
-    /* Eased so the wheel keeps visibly moving through the first half and then
-       winds down. The old curve put half the rotation into the first tenth of
-       the time and crawled through the rest, which read as a sprint and a
-       stall rather than a wheel slowing under friction. */
+    /* Launches hard and sheds speed the way a wheel does under friction: the
+       first half second is a blur, then it decelerates into roughly 2.5s slow
+       enough to follow one character round and watch the hands go up.
+
+       The trap is the tail, not the launch. Rotation is a fixed budget, so
+       spending more of it up front leaves less for the end: a faster start on
+       the same clock buys nothing but a longer crawl, which is the "sprint and
+       a stall" an earlier curve was replaced for. It is paid for instead by
+       turning more (7-10) in less time (4.8-6.0s), which keeps the crawl below
+       40deg/s down to 0.7s, shorter than the 1.2s it used to be. Work the
+       numbers before touching any of the three - they only hold together. */
     wheel.style.transition = 'transform ' + Math.round(dur)
-                           + 'ms cubic-bezier(.18,.58,.22,1)';
+                           + 'ms cubic-bezier(.12,.78,.42,1)';
     void wheel.offsetWidth;
     wheel.style.transform = 'rotate(' + rotation + 'deg)';
 
