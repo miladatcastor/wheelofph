@@ -61,6 +61,20 @@
 
 *{box-sizing:border-box}
 html,body{margin:0}
+/* The app is exactly one viewport and never scrolls, so it must never be able
+   to raise a scrollbar. This is not tidiness. `.wheel` is a square that is
+   permanently rotating, and the axis-aligned bounding box of a rotating square
+   swells by 41% at 45deg and shrinks back - that box counts as document
+   overflow, so the page's scroll height pulses every single frame. On a laptop
+   screen macOS uses overlay scrollbars, which float above the layout, so
+   nothing moves and the bug is invisible. Plug in a monitor and you have
+   usually plugged in a mouse, and macOS switches to classic scrollbars that
+   take real layout width: the bar appears, steals 15px, the narrower viewport
+   shrinks the stage, the smaller wheel no longer overflows, the bar goes, the
+   wheel grows back - a loop that runs every frame and reads as the wheel
+   shaking itself. Scoped with :has() because ?inspect replaces .app outright
+   and that contact sheet does need to scroll. */
+html:has(.app){overflow:hidden}
 body{
   background:var(--bg);
   color:var(--ink);
@@ -446,8 +460,9 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 /* a class selector outranks the UA's [hidden]{display:none}, so say it again */
 .panel[hidden]{display:none}
 
-/* Below the two-column breakpoint the wheel is limited by width, and the page
-   is allowed to scroll again so the controls stay reachable. */
+/* Below the two-column breakpoint the wheel is limited by width rather than by
+   height. The controls stay reachable without scrolling either way - the drawer
+   is position:fixed with its own overflow. */
 @media (max-width:819px){
   .app{height:100dvh}
   .stage{max-width:100%}

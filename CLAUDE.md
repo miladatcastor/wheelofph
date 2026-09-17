@@ -87,6 +87,20 @@ at all - dispatch a synthetic bubbling `transitionend` to test it.
 stylesheet at start-up; only keyframe *percentages* belong in JS. A hand-copied
 duration once truncated the cave animation to 56%, cutting it off mid-lunge.
 
+**The page must never be able to raise a scrollbar.** `.wheel` is a square
+that is permanently rotating, and the axis-aligned bounding box of a rotating
+square swells by 41% at 45deg and shrinks back, so the document's scroll
+height pulses every frame. macOS hides this on a laptop screen, where
+scrollbars are overlays that float above the layout. Plug in a monitor and you
+have usually plugged in a mouse, and macOS switches to classic scrollbars that
+take real layout width: the bar appears, steals 15px, the narrower viewport
+shrinks `.stage`, the smaller wheel stops overflowing, the bar goes, the wheel
+grows back - every frame, which reads as the wheel shaking itself.
+`html:has(.app){overflow:hidden}` severs it. The `:has()` is load-bearing:
+`?inspect` replaces `.app` outright and that contact sheet does need to
+scroll. Nothing is lost by clipping - what spills past the viewport is the
+empty corner of the wheel's bounding box.
+
 ## Animation has to survive a screen share
 
 This gets shared as a Chrome tab on calls, which caps at ~30fps and adapts
