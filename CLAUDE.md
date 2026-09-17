@@ -127,18 +127,27 @@ Everyone else who escapes gets one of four reactions - relieved, gloat, smug, ch
 dealt from a shuffled deck, so with four or fewer survivors no two react the
 same way. Drawing independently gave three the same pose about half the time.
 
-Every landing ends one of exactly three ways, with equal odds: push right,
-push left, or cave - four, on the same flat odds, when the CEO is switched on.
-There is deliberately no probability gate on top and no no-repeat rule - both
-existed once and made the behaviour impossible to reason about or to see.
-Resist adding a layer here.
+Every landing ends one of exactly three ways - push right, push left, or cave
+- and four when the CEO is switched on. Caving is deliberately twice as likely
+as any single one of the others; the three that pass it on or bring Derk in are
+equally likely to each other.
 
-The distinction that lets the CEO exist at all is that he is a fourth **entry**
-in `SHOVE_OPTIONS`, not a roll in front of it. "Sometimes the CEO turns up,
-otherwise the usual three" is the exact layering that was torn out once
-already. `outcomes()` returns a 3- or 4-element list and one flat pick is taken
-from it; if you ever find yourself writing a second `Math.random()` above that
-line, stop.
+    accept 2/5 = 40%    right 1/5    left 1/5    ceo 1/5
+    CEO off:            accept 1/2   right 1/4   left 1/4
+
+**The weighting is the shape of the list, nothing else.** `SHOVE_OPTIONS`
+holds `accept` twice and `outcomes()` appends `ceo`; one flat pick is taken
+from the result. Repeating an entry is not a layer - it is still one roll you
+can read in one line, and changing the balance means changing the list.
+
+What IS a layer is a second roll in front of that one: "sometimes the CEO turns
+up, otherwise the usual three", or a probability gate, or a no-repeat rule. All
+three existed once and made the behaviour impossible to reason about or to see.
+If you ever find yourself writing a second `Math.random()` above the pick, stop
+and change the shape of the list instead.
+
+Note the odds are stated in three places - that comment, the CEO tick box in
+the drawer, and the README. Change the list and they all have to move.
 
 ## The CEO
 

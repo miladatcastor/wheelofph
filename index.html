@@ -681,9 +681,10 @@ textarea{
       </label>
       <label class="opt" for="ceoOn">
         <input type="checkbox" id="ceoOn" checked>
-        <span>The CEO &mdash; a fourth thing that can happen, on exactly the
-        same odds as the other three. He walks in, overrules the wheel and
-        hands it to whoever he likes.</span>
+        <span>The CEO &mdash; a fourth ending, as likely as a shove either
+        way. He walks in, overrules the wheel and hands it to whoever he
+        likes. Taking the hit stays twice as likely as any one of the
+        three.</span>
       </label>
       <div class="ceopick">
         <label for="ceoPick">&hellip;and who he always hands it to</label>
@@ -1592,12 +1593,21 @@ textarea{
      A third of the time they cave, so the result only actually moves on about
      two thirds of these. */
   /* Every landing ends one of these three ways, evenly. */
-  /* Every landing ends one of these, with equal odds. The CEO is a fourth
-     ENTRY in this list, not a roll in front of it - that distinction is the
-     whole reason he is allowed to exist. A gate on top ("sometimes the CEO
-     turns up, otherwise the usual three") is the layering that made this
-     impossible to reason about last time, and it is not coming back. */
-  var SHOVE_OPTIONS = ['right', 'left', 'accept'];
+  /* Every landing ends one of these. ONE flat pick from ONE list, and the
+     weighting is the list itself: taking the hit is twice as likely as any
+     single other ending, because 'accept' appears twice. Shoving right,
+     shoving left and the CEO are all equally likely.
+
+         accept 2/5 = 40%    right 1/5    left 1/5    ceo 1/5
+         with the CEO off:   accept 1/2   right 1/4   left 1/4
+
+     Repeating an entry is not a layer - it is still one roll you can read in
+     one line. What IS a layer is a second roll in front of this one
+     ("sometimes the CEO turns up, otherwise the usual three"), which is what
+     made this impossible to reason about last time, and is not coming back.
+     If you ever find yourself writing a second Math.random() above the pick,
+     stop and change the shape of this list instead. */
+  var SHOVE_OPTIONS = ['right', 'left', 'accept', 'accept'];
   function outcomes(){
     return ceoOnEl.checked ? SHOVE_OPTIONS.concat('ceo') : SHOVE_OPTIONS;
   }
