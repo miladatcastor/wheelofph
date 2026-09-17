@@ -32,6 +32,13 @@ it. Whoever shoves it away points at the person they just landed it on.
 Everyone who escapes gets one of four reactions — relieved, gloating, smug or
 cheering — dealt so that no two of them react the same way.
 
+Switch the CEO on in the drawer and there is a fourth ending, on exactly the
+same odds as the other three — not a chance layered on top of them. Derk walks
+in, towers over the ring, plants himself and jabs a finger at whoever you
+nominated, and the wheel goes wherever he says regardless of where it actually
+landed. Then he puts his hands on his hips, says something a CEO says, and
+strides off the side of the screen.
+
 ## `?inspect`
 
 Open `index.html?inspect` for the contact sheet: every state on every
@@ -48,7 +55,8 @@ Three seams, all of which have held up through sixteen states and five
 characters:
 
 1. **`characters`** is the only source of truth — `{name, state, hue,
-   headImage, look}`. Rendering reads from it; nothing else holds state.
+   headImage, look}`. Rendering reads from it; nothing else holds state. The
+   CEO is an overlay and deliberately stays out of it.
 2. **`setState(index, state)`** is the only place a character's appearance
    changes.
 3. **Poses are SVG groups tagged `data-show="stateA stateB"`.** A new state is

@@ -170,10 +170,22 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char .bubble{transform-box:fill-box;transform-origin:14% 100%;animation:pop .34s ease-out both}
 .char .stubble{opacity:.42}
 .char .collar{fill:var(--collar,#1f2a4d);stroke:var(--stroke);stroke-width:1.4}
+/* a clip-on name tag, pinned inside .breathe so it moves with the shirt */
+.char .badge-box{fill:#fbfbf9;stroke:var(--stroke);stroke-width:.85}
+.char .badge-clip{fill:none;stroke:var(--stroke);stroke-width:.85;stroke-linecap:round}
+.char .badge-text{
+  font-family:inherit;font-size:2.9px;font-weight:750;fill:var(--ink);
+  text-anchor:middle;dominant-baseline:middle;
+}
 /* a painted lip reads at wheel size where a hairline stroke would not */
 .char.lips .mouth{stroke-width:2.6}
 .char .beard{fill:var(--beard, var(--hair))}
 .char .glasses{fill:none;stroke:#14110e;stroke-width:1.7;stroke-linecap:round}
+/* mirrored sunglasses: the lens is filled, so it hides the eyes behind it.
+   Drawn after the eye groups for exactly that reason. */
+.char .shade-lens{fill:var(--lens,#2e6f62);stroke:#14110e;stroke-width:1.7}
+.char .shade-glare{fill:none;stroke:rgba(255,255,255,.6);stroke-width:1.5;stroke-linecap:round}
+.char .shade-bar{fill:none;stroke:#14110e;stroke-width:1.7;stroke-linecap:round}
 /* on a beard the mouth needs a light edge to stay legible */
 .char.bearded .mouth-f{stroke:var(--skin);stroke-width:1.4}
 .char.bearded .mouth{stroke:#e9a9a2}
@@ -182,6 +194,7 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char .brow{fill:none;stroke:var(--eye);stroke-width:1.9;stroke-linecap:round}
 .char .eye{fill:var(--eye)}
 .char .glint{fill:#fff}
+.char .teeth{fill:#fff}
 .char .eye-w{fill:#fff;stroke:var(--eye);stroke-width:1.2}
 .char .xeye{fill:none;stroke:var(--eye);stroke-width:1.9;stroke-linecap:round}
 .char .shut{fill:none;stroke:var(--eye);stroke-width:1.8;stroke-linecap:round}
@@ -225,6 +238,9 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char[data-state="gotcha-right"] [data-show~="gotcha-right"]{display:block}
 .char[data-state="gotcha-left"] [data-show~="gotcha-left"] {display:block}
 .char[data-state="ring"]        [data-show~="ring"]       {display:block}
+.char[data-state="walk"]        [data-show~="walk"]      {display:block}
+.char[data-state="decree"]      [data-show~="decree"]    {display:block}
+.char[data-state="verdict"]     [data-show~="verdict"]   {display:block}
 
 /* Waiting to start, everyone closes in toward the hub and links up. --pull is
    worked out per list length in render(), since how far in they have to come
@@ -503,6 +519,100 @@ textarea{
 .opt{display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:500;
   color:var(--muted);line-height:1.45;cursor:pointer}
 .opt input{margin:2px 0 0;accent-color:var(--accent);flex:none;cursor:pointer}
+.ceopick{display:flex;flex-direction:column;gap:5px}
+.ceopick label{font-size:12px;color:var(--muted);font-weight:600}
+.ceopick select{
+  font:inherit;font-size:13px;padding:8px 10px;border-radius:10px;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;
+}
+.ceopick[hidden]{display:none}
+
+/* ---------- the CEO ----------
+   He is not on the wheel and is not in `characters`; he is an overlay that
+   walks in over the top of it. He reuses the character rig wholesale, so his
+   poses are ordinary data-show groups like everyone else's and he picks up
+   hair, shades and stubble from the same tables.
+
+   Every animated element here carries ONLY animation. Placement lives on a
+   parent group, because a CSS animation silently overwrites an element's SVG
+   transform attribute - ?inspect audits for it and goes red. */
+.ceo{
+  position:absolute;left:0;bottom:0;z-index:6;width:52%;
+  pointer-events:none;
+  /* Percentages here are of HIS OWN width, which is a fraction of the stage,
+     and the stage is narrower than the window - so -118%/+132% left him parked
+     beside the wheel, still in shot, and he simply vanished when hidden was
+     set. These are anchored to the viewport instead: his right edge starts at
+     stage-left minus half a window (stage-left is always under 50vw, so that
+     always clears), and he exits a full window to the right. */
+  transform:translateX(calc(-100% - 50vw));
+  transition:transform 1600ms cubic-bezier(.33,0,.3,1);
+  filter:drop-shadow(0 10px 20px rgba(0,0,0,.34));
+}
+.ceo svg{display:block;width:100%;height:auto;overflow:visible}
+/* a class selector outranks the UA's [hidden], so it needs saying explicitly */
+.ceo[hidden]{display:none}
+/* far enough in to loom over the ring, far enough left that the pointer and
+   the slice he has just handed it to stay readable behind him */
+.ceo[data-phase="in"],
+.ceo[data-phase="decree"]{transform:translateX(5%)}
+.ceo[data-phase="out"]{transform:translateX(100vw)}
+
+/* walk: the legs scissor about the hip and the arms swing against them. One
+   cycle is two steps, so this is 2Hz - well under the ~5Hz a shared tab can
+   carry before it aliases into noise. */
+@keyframes strideF{0%{transform:rotate(-21deg)}50%{transform:rotate(21deg)}100%{transform:rotate(-21deg)}}
+@keyframes strideB{0%{transform:rotate(21deg)}50%{transform:rotate(-21deg)}100%{transform:rotate(21deg)}}
+@keyframes swingF{0%{transform:rotate(20deg)}50%{transform:rotate(-20deg)}100%{transform:rotate(20deg)}}
+@keyframes swingB{0%{transform:rotate(-20deg)}50%{transform:rotate(20deg)}100%{transform:rotate(-20deg)}}
+@keyframes walkBob{0%,50%,100%{transform:translateY(0)}25%,75%{transform:translateY(-1.7px)}}
+/* fill-box origins are percentages of the element's own bbox, so these are
+   worked out from the joint's position inside it, not eyeballed: a leg box
+   runs from 3.5 above the hip (half the outline stroke) to 4.45 below the
+   foot, putting the hip 20% down; an arm box puts the shoulder 16% down. */
+.char[data-state="walk"] .stride-f,
+.char[data-state="walk"] .stride-b{transform-box:fill-box;transform-origin:50% 20%}
+.char[data-state="walk"] .swing-f,
+.char[data-state="walk"] .swing-b{transform-box:fill-box;transform-origin:50% 16%}
+.char[data-state="walk"] .stride-f{animation:strideF 0.75s ease-in-out infinite}
+.char[data-state="walk"] .stride-b{animation:strideB 0.75s ease-in-out infinite}
+.char[data-state="walk"] .swing-f{animation:swingF 0.75s ease-in-out infinite}
+.char[data-state="walk"] .swing-b{animation:swingB 0.75s ease-in-out infinite}
+.char[data-state="walk"] .body-all{transform-box:fill-box;transform-origin:50% 100%;
+  animation:walkBob 0.75s ease-in-out infinite}
+
+/* decree: plants, leans in and jabs a finger at the slice he wants. The arm
+   cocks back first so the jab has somewhere to come from. */
+@keyframes decreeJab{
+  0%{transform:rotate(-30deg)}
+  34%{transform:rotate(9deg)}
+  48%{transform:rotate(1deg)}
+  60%{transform:rotate(4deg)}
+  100%{transform:rotate(3deg)}
+}
+@keyframes decreeLean{
+  0%{transform:translateX(0) rotate(0deg)}
+  30%{transform:translateX(1.6px) rotate(3.5deg)}
+  55%{transform:translateX(.4px) rotate(1deg)}
+  100%{transform:translateX(.7px) rotate(1.6deg)}
+}
+/* the jabbing arm reaches right and down, so its shoulder sits 15% across
+   and 28% down its own box */
+.char[data-state="decree"] .jab-arm{transform-box:fill-box;transform-origin:15% 28%;
+  animation:decreeJab 900ms cubic-bezier(.3,1.5,.5,1) both}
+.char[data-state="decree"] .body-all{transform-box:fill-box;transform-origin:50% 100%;
+  animation:decreeLean 900ms cubic-bezier(.3,1.2,.5,1) both}
+
+@media (prefers-reduced-motion:reduce){
+  .ceo{transition:none}
+  .char[data-state="walk"] .stride-f,
+  .char[data-state="walk"] .stride-b,
+  .char[data-state="walk"] .swing-f,
+  .char[data-state="walk"] .swing-b,
+  .char[data-state="walk"] .body-all,
+  .char[data-state="decree"] .jab-arm,
+  .char[data-state="decree"] .body-all{animation:none}
+}
 
 /* ---------- ?inspect contact sheet ---------- */
 .inspect{padding:14px 16px 40px;font:13px/1.5 ui-sans-serif,system-ui,sans-serif;color:var(--ink)}
@@ -534,6 +644,7 @@ textarea{
           </div>
           <button class="hub" id="spin" type="button">Spin</button>
         </div>
+        <div class="ceo" id="ceo" data-phase="away" aria-hidden="true" hidden></div>
       </div>
       <p class="result" id="result" role="status" aria-live="polite">Ready when you are.</p>
     </div>
@@ -566,8 +677,18 @@ textarea{
         <input type="checkbox" id="sore" checked>
         <span>Sore losers &mdash; whoever gets picked squares up and either
         shoves the wheel a notch left or right, landing a neighbour in it, or
-        thinks better of it and takes the hit. Even odds on all three.</span>
+        thinks better of it and takes the hit.</span>
       </label>
+      <label class="opt" for="ceoOn">
+        <input type="checkbox" id="ceoOn" checked>
+        <span>The CEO &mdash; a fourth thing that can happen, on exactly the
+        same odds as the other three. He walks in, overrules the wheel and
+        hands it to whoever he likes.</span>
+      </label>
+      <div class="ceopick">
+        <label for="ceoPick">&hellip;and who he always hands it to</label>
+        <select id="ceoPick"></select>
+      </div>
       <input type="file" id="file" accept="image/*" hidden>
   </aside>
 </main>
@@ -583,6 +704,9 @@ textarea{
   var resultEl = document.getElementById('result');
   var soreEl   = document.getElementById('sore');
   var facesEl  = document.getElementById('faces');
+  var ceoEl    = document.getElementById('ceo');
+  var ceoOnEl  = document.getElementById('ceoOn');
+  var ceoPickEl= document.getElementById('ceoPick');
   var fileEl   = document.getElementById('file');
 
   var pendingFace = -1;
@@ -592,6 +716,20 @@ textarea{
 
   /* SEAM: per-character appearance, separate from state. A look sets colours
      (CSS custom properties) and switches on pre-drawn feature groups. */
+  /* The CEO. Deliberately NOT in `characters` and never on the wheel - he is
+     an overlay that walks in over the top of it, so the one-source-of-truth
+     seam stays intact. He wears the same rig and the same look vocabulary as
+     everyone else, read off a photo the same way: broad square skull, tousled
+     sun-bleached hair, light stubble, and the mirrored sunglasses that are
+     most of his silhouette. */
+  var CEO_NAME = 'Derk';
+  var CEO_LOOK = {
+    skin:'#d7a684', hair:'#9c8464', beard:'#7e6a52', top:'#c9cac6',
+    lens:'#2e6f62', badge:CEO_NAME,
+    hairStyle:'tousled', beardStyle:'stubble', glasses:'shades',
+    head:{ rx:11.6, ry:16.9 }
+  };
+
   var SEED_LOOKS = {
     'Milad':  { skin:'#c9a078', hair:'#14121c', beard:'#33292a', top:'#ece7dd',
                 hairStyle:'thick', glasses:'wide', head:{ rx:11.8, ry:16.6 } },
@@ -684,12 +822,26 @@ textarea{
       + limb('M4.5,11 v10')  + foot(4.5,21)
     + '</g>'
 
+    /* walking: the legs scissor about the hip. Two separate groups because
+       each carries its own animation and nothing else - placement stays on
+       the paths themselves. */
+    + '<g data-show="walk">'
+      + '<g class="stride-b">' + limb('M-3.4,11 v10') + foot(-3.4,21) + '</g>'
+      + '<g class="stride-f">' + limb('M3.4,11 v10')  + foot(3.4,21)  + '</g>'
+    + '</g>'
+    /* planted: feet wide apart, which is a different shape from ten paces away */
+    + '<g data-show="decree verdict">'
+      + limb('M-4.5,11 C-6.5,15 -7.6,18 -8.2,21') + foot(-8.2,21)
+      + limb('M4.5,11 C6.5,15 7.6,18 8.2,21')     + foot(8.2,21)
+    + '</g>'
+
     /* torso (breathes on idle) */
     + '<g class="breathe">'
       + '<path class="neck" d="M-3.5,-14.5 L3.5,-14.5 L4.3,-6.5 L-4.3,-6.5 Z"/>'
       + '%TOP%'
       + '%STRIPES%'
       + '%COLLAR%'
+      + '%BADGE%'
     + '</g>'
 
 
@@ -725,9 +877,15 @@ textarea{
       + '<g data-show="accept">'
         + '<path class="brow" d="M-10,-28.8 l6.5,-2.4"/><path class="brow" d="M10,-28.8 l-6.5,-2.4"/>'
       + '</g>'
+      /* raised, and high enough to clear a sunglasses frame - at the shared
+         height they weld onto the top of the lens and read as a thicker rim */
+      + '<g data-show="walk decree verdict">'
+        + '<path class="brow" d="M-9.6,-31.4 q3.1,-2.4 6.2,-0.4"/>'
+        + '<path class="brow" d="M9.6,-31.4 q-3.1,-2.4 -6.2,-0.4"/>'
+      + '</g>'
 
       /* eyes */
-      + '<g data-show="idle nervous stomp ring">'
+      + '<g data-show="idle nervous stomp ring walk decree verdict">'
         + '<circle class="eye" cx="-5" cy="-25" r="1.9"/><circle class="eye" cx="5" cy="-25" r="1.9"/>'
       + '</g>'
       + '<g data-show="panic">'
@@ -765,6 +923,11 @@ textarea{
       + '<g data-show="gloat cheer gotcha-left gotcha-right">'
         + '<path class="mouth-f" d="M-5.6,-19 a5.6,5.6 0 0 0 11.2,0 z"/></g>'
       + '<g data-show="smug"><path class="mouth" d="M-4.2,-17.8 q4.2,2.4 8.4,-1.4"/></g>'
+      /* a broad open grin with the top teeth showing - the CEO's whole face */
+      + '<g data-show="walk decree verdict">'
+        + '<path class="mouth-f" d="M-5.2,-18.8 a5.2,5.2 0 0 0 10.4,0 z"/>'
+        + '<path class="teeth" d="M-4.5,-18.5 h9 l-1,1.6 h-7 z"/>'
+      + '</g>'
       + '</g>'
       + '</g>'
 
@@ -856,6 +1019,28 @@ textarea{
       + '<g class="jab">' + limb('M-11,-6 C-16,-10 -21,-13 -25,-14') + hand(-25,-14) + '</g>'
     + '</g>'
 
+    /* walking: arms swing against the legs. Back arm first so the front one
+       covers it as it passes the body. */
+    + '<g data-show="walk">'
+      + '<g class="swing-b">' + limb('M-11,-5 v13') + hand(-11,8) + '</g>'
+      + '<g class="swing-f">' + limb('M11,-5 v13')  + hand(11,8)  + '</g>'
+    + '</g>'
+    /* the decree: one hand on the hip, the other jabbing a finger at the
+       slice he has decided on. The jab arm is the only animated part. */
+    + '<g data-show="decree">'
+      + limb('M-11,-4 C-16,0 -15,4 -10,4.5') + hand(-10,4.5)
+      + '<g class="jab-arm">'
+        + limb('M11,-6 C17,-7 22,-5 26,-3') + hand(26,-3)
+      + '</g>'
+    + '</g>'
+
+    /* he has made his point; the finger comes down and both hands go on the
+       hips while he delivers the line */
+    + '<g data-show="verdict">'
+      + limb('M-11,-4 C-16,0 -15,4 -10,4.5') + hand(-10,4.5)
+      + limb('M11,-4 C16,0 15,4 10,4.5')     + hand(10,4.5)
+    + '</g>'
+
     /* cheer: both arms up */
     + '<g data-show="cheer">'
       + limb('M-11,-5 C-16,-11 -18,-18 -17,-25') + hand(-17,-25)
@@ -904,6 +1089,24 @@ textarea{
   var TOP_PATH = 'M5,-9 C8.6,-9 11.6,-7 12,-3.5 L12,5'
                + ' A12,12 0 0 1 -12,5 L-12,-3.5 C-11.6,-7 -8.6,-9 -5,-9 Z';
 
+  /* Name tag. Sits on the wearer's right so it never ends up under the arm
+     that does the pointing. Reached through %BADGE% like everything else
+     CHAR_MARKUP needs - the string is built before this line runs, so naming
+     it directly would emit a silent `undefined`. */
+  /* Wide, the way a real name tag is. At 9.6 even 'Derk' measured 7.97
+     against a 7.8 inner width, so fitBadge squeezed every name it ever saw
+     and the letterforms came out distorted; the squeeze is meant to be the
+     exception, not the rule. */
+  var BADGE_X = -8.4, BADGE_Y = -6.6, BADGE_W = 11.4, BADGE_H = 4.8, BADGE_PAD = 0.9;
+  var BADGE = '<g class="badge">'
+            + '<path class="badge-clip" d="M' + f(BADGE_X + 2.2) + ',' + f(BADGE_Y)
+              + ' v-1.1 h3 v1.1"/>'
+            + '<rect class="badge-box" x="' + BADGE_X + '" y="' + BADGE_Y + '"'
+              + ' width="' + BADGE_W + '" height="' + BADGE_H + '" rx="1.05"/>'
+            + '<text class="badge-text" x="' + f(BADGE_X + BADGE_W/2) + '"'
+              + ' y="' + f(BADGE_Y + BADGE_H/2) + '">%BADGENAME%</text>'
+            + '</g>';
+
   /* Only states that happen on the pointer slice get a bubble: that character
      is always upright at the top, so the text never ends up sideways. */
   var SAY = {
@@ -913,6 +1116,11 @@ textarea{
     'accept':      ['fine', 'figures', 'ok fine'],
     'bristle':     ['no way', 'hang on', 'nope'],
     'gotcha-right':['hah!', 'later', 'bye then', 'sucker'],
+    /* The CEO, on his way out. He is an upright overlay rather than a slice,
+       so unlike every other line here his bubble needs no counter-rotation. */
+    'verdict':     ['executive decision', 'own it', 'take one for the team',
+                    'this is a growth opportunity', 'circle back on Monday',
+                    'I made the call', 'great optics'],
     'gotcha-left': ['hah!', 'later', 'bye then', 'sucker']
   };
 
@@ -942,13 +1150,20 @@ textarea{
      head *on screen*: rotate that offset back into local space, then undo the
      rotation so the words stay level. The box then sits above and right of
      the head whatever angle the character is at. */
-  function aimBubble(g, net){
+  /* `scale` is for a speaker drawn at a different size to the wheel ones. A
+     bubble is built in its owner's units, so the CEO - who renders 2.87x a
+     wheel character - gets a bubble 2.87x as big, which covers most of the
+     wheel. It is applied AFTER the translate so the box shrinks about the
+     tail tip and stays pinned to his head. It cannot go on .bubble: that
+     carries the pop animation, and an animation overwrites the transform. */
+  function aimBubble(g, net, scale){
     var rad = net * Math.PI / 180, c = Math.cos(rad), sn = Math.sin(rad);
     var lx = SAY_OFF_X * c + SAY_OFF_Y * sn;
     var ly = -SAY_OFF_X * sn + SAY_OFF_Y * c;
     g.setAttribute('transform',
       'translate(' + lx.toFixed(2) + ',' + (SAY_HEAD_Y + ly).toFixed(2) + ')'
-      + ' rotate(' + (-net).toFixed(1) + ')');
+      + ' rotate(' + (-net).toFixed(1) + ')'
+      + (scale ? ' scale(' + scale + ')' : ''));
   }
 
   /* Measures the line as actually rendered, so it holds for any font or any
@@ -1022,6 +1237,38 @@ textarea{
              + ' C13.2,-28.4 11.4,-30.6 8.2,-31.8'
              + ' C4.4,-33.2 -1.2,-33.2 -5.6,-32.2'
              + ' C-9.6,-31.2 -12.6,-28.8 -13.9,-24 Z"/>',
+    /* windblown: one sweep for the mass, two tufts standing off it. The mass
+       is a single convex path on purpose - an inner notch here reads as a
+       widow's peak at wheel size, which is how the curly one went wrong. */
+    /* A big windblown mop: widest around the middle of the skull, tapering to
+       an irregular top, higher and flicked out on one side. Sized in BASE
+       space knowing the head-shape scale stretches it 1.21 vertically and
+       squeezes it 0.83 across - draw it big here as well as lengthening the
+       head and the two multiply into a helmet. */
+    /* Short at the sides, all the volume on top - that is what makes it read
+       as hair rather than a bob. Carrying the mass down past the temples puts
+       a vertical slab either side of the face and the whole head goes helmet.
+       Sized in BASE space: the head-shape scale then stretches it 1.21 tall
+       and squeezes it 0.83 wide, so drawing it big here AND lengthening the
+       head multiplies into the same helmet. */
+    /* Short sides, fringe on top. The two contours MEET at the temple, and
+       where that meeting point sits is the whole character of the cut: carry
+       it down to the widest part of the skull and you get a bob framing the
+       face, whatever you do to the top. Measured off the photo, the temple
+       hairline is 17% of head height above the eye line (base y -29.8) and
+       the fringe hangs to 24% (-31.8).
+       Sized in BASE space: head-shape then stretches it 1.21 tall and squeezes
+       it 0.83 wide, so drawing it big here AND lengthening the head multiply
+       into a helmet. */
+    'tousled': '<path class="hair" d="M-13.2,-29.6'
+             + ' C-14.4,-33.6 -13.8,-37.4 -10.9,-40.1'
+             + ' C-8.9,-42.5 -5.9,-43.5 -4,-41.5'
+             + ' C-2,-44.5 2,-45.3 4.1,-42.7'
+             + ' C6.6,-44.5 10.2,-43 12.1,-39.2'
+             + ' C13.9,-35.9 14.4,-32.7 13.2,-29.6'
+             + ' C11.8,-32.8 8.6,-34.4 5,-34.8'
+             + ' C1,-35.2 -3.4,-34.4 -7,-32.8'
+             + ' C-9.6,-31.8 -11.8,-30.8 -13.2,-29.6 Z"/>',
     'thick':   '<path class="hair" d="M-13.86,-26 A14,14 0 0 1 13.86,-26'
              + ' C13.4,-27.4 11.8,-28.9 8.6,-30'
              + ' C4.8,-31.2 -1,-31.2 -5.4,-30.3'
@@ -1060,6 +1307,21 @@ textarea{
           + '<path d="M-9.85,-26.2 L-13.7,-24.6"/>'
           + '<path d="M9.85,-26.2 L13.7,-24.6"/>'
           + '</g>',
+    /* mirrored sunglasses. The lens is FILLED, so whatever eye group the
+       state shows is simply covered - which is why %GLASSES% is drawn after
+       the eyes. The glare streaks are kept well inside the lens box; run them
+       corner to corner and they poke out past the frame. */
+    'shades': '<g class="shades">'
+            + '<rect class="shade-lens" x="-10.4" y="-28.2" width="9.6" height="6.9" rx="2.2"/>'
+            + '<rect class="shade-lens" x="0.8" y="-28.2" width="9.6" height="6.9" rx="2.2"/>'
+            + '<path class="shade-glare" d="M-8.8,-23.4 l3.2,-3.2"/>'
+            + '<path class="shade-glare" d="M-6.5,-23 l1.7,-1.7"/>'
+            + '<path class="shade-glare" d="M2.4,-23.4 l3.2,-3.2"/>'
+            + '<path class="shade-glare" d="M4.7,-23 l1.7,-1.7"/>'
+            + '<path class="shade-bar" d="M-0.8,-26.8 q0.8,-1.1 1.6,0"/>'
+            + '<path class="shade-bar" d="M-10.4,-26.9 L-13.9,-25.3"/>'
+            + '<path class="shade-bar" d="M10.4,-26.9 L13.9,-25.3"/>'
+            + '</g>',
     /* taller lenses, centred on the eye rather than hung below it */
     'tall': '<g class="glasses">'
           + '<rect x="-10" y="-28.7" width="9.35" height="7.2" rx="2.4"/>'
@@ -1130,6 +1392,10 @@ textarea{
         return out;
       })
       .replace('%COLLAR%',   function(){ return look.collar ? COLLAR : ''; })
+      .replace('%BADGE%',    function(){
+        if(!look.badge) return '';
+        return BADGE.replace('%BADGENAME%', function(){ return esc(look.badge); });
+      })
       .replace('%STRIPES%',  function(){ return stripes(i, look); })
       .replace('%HEADT%',    function(){ return T.head; })
       .replace(/%BANDE%/g,   function(){ return T.eyes; })
@@ -1186,7 +1452,7 @@ textarea{
 
   /* Give the character its line, size the box to it, and swing the bubble
      level - the winner can be tilted by up to half a slice. */
-  function speak(el, state, index){
+  function speak(el, state, index, net, scale){
     var lines = SAY[state];
     if(!lines) return;
     var g = el.querySelector('[data-show~="' + state + '"] .bubble-aim');
@@ -1197,7 +1463,7 @@ textarea{
     /* `rotation` is the target, not what the matrix currently reads. Measuring
        mid-transition put the bubble out by exactly one slice - the same trap
        that once made the shove announce the wrong name. */
-    aimBubble(g, index * 360 / characters.length + rotation);
+    aimBubble(g, net === undefined ? index * 360 / characters.length + rotation : net, scale);
   }
 
   /* ---------- rendering ---------- */
@@ -1209,6 +1475,20 @@ textarea{
     var a = polar(i*seg - seg/2, R), b = polar(i*seg + seg/2, R);
     return 'M'+CX+','+CY+' L'+f(a[0])+','+f(a[1])
          + ' A'+R+','+R+' 0 '+(seg > 180 ? 1 : 0)+' 1 '+f(b[0])+','+f(b[1])+' Z';
+  }
+
+  /* The custom properties a look resolves to. Shared, because the CEO wears
+     the same rig as the wheel characters without being one of them. */
+  function lookVars(look){
+    return (look.skin   ? ';--skin:'+look.skin : '')
+         + (look.hair   ? ';--hair:'+look.hair : '')
+         + (look.beard && look.beard !== true ? ';--beard:'+look.beard : '')
+         + (look.top    ? ';--top-col:'+look.top : '')
+         + (look.lip    ? ';--lip:'+look.lip : '')
+         + (look.collar ? ';--collar:'+look.collar : '')
+         + (look.stripe ? ';--stripe:'+look.stripe : '')
+         + (look.stripe2? ';--stripe2:'+look.stripe2 : '')
+         + (look.lens   ? ';--lens:'+look.lens : '');
   }
 
   function render(){
@@ -1255,15 +1535,7 @@ textarea{
            + esc(trunc(c.name)) + '</text>';
       var look = c.look || {};
       var vars = '--hue:'+c.hue+';--d:'+(i*0.37).toFixed(2)+'s'
-               + ';--pull:'+pull.toFixed(1)
-               + (look.skin ? ';--skin:'+look.skin : '')
-               + (look.hair  ? ';--hair:'+look.hair : '')
-               + (look.beard && look.beard !== true ? ';--beard:'+look.beard : '')
-               + (look.top    ? ';--top-col:'+look.top : '')
-               + (look.lip    ? ';--lip:'+look.lip : '')
-               + (look.collar  ? ';--collar:'+look.collar : '')
-               + (look.stripe  ? ';--stripe:'+look.stripe : '')
-               + (look.stripe2 ? ';--stripe2:'+look.stripe2 : '');
+               + ';--pull:'+pull.toFixed(1) + lookVars(look);
       out += '<g data-i="'+i+'" class="char'+(c.headImage ? ' has-photo' : '')
            + (look.beard ? ' bearded' : '')+(look.lip ? ' lips' : '')+'"'
            + ' data-state="'+c.state+'"'
@@ -1320,7 +1592,142 @@ textarea{
      A third of the time they cave, so the result only actually moves on about
      two thirds of these. */
   /* Every landing ends one of these three ways, evenly. */
+  /* Every landing ends one of these, with equal odds. The CEO is a fourth
+     ENTRY in this list, not a roll in front of it - that distinction is the
+     whole reason he is allowed to exist. A gate on top ("sometimes the CEO
+     turns up, otherwise the usual three") is the layering that made this
+     impossible to reason about last time, and it is not coming back. */
   var SHOVE_OPTIONS = ['right', 'left', 'accept'];
+  function outcomes(){
+    return ceoOnEl.checked ? SHOVE_OPTIONS.concat('ceo') : SHOVE_OPTIONS;
+  }
+
+  var CEO_WALK, CEO_DECREE, ceoTimer, ceoCharEl = null;
+  var CEO_TURN = 620;   /* the wheel swinging round to the slice he picked */
+  var CEO_LAP  = 980;   /* the full lap he gives it when it is already there */
+  var CEO_HOLD = 1700;  /* long enough to read his line before he walks off */
+  /* He draws 2.87x the size of a wheel character, so his bubble would too.
+     0.348 would match theirs exactly; he gets a shade more than that. */
+  var CEO_SAY_SCALE = 0.45;  /* long enough to read his line before he walks off */
+
+  function buildCeo(){
+    ceoEl.innerHTML =
+      '<svg viewBox="-31 -53 63 84" aria-hidden="true" focusable="false">'
+      + '<g class="char bearded" data-state="walk"'
+      + ' style="--hue:0' + lookVars(CEO_LOOK) + '">'
+      + charMarkup(99, { name:CEO_NAME, state:'walk', hue:0, look:CEO_LOOK })
+      + '</g></svg>';
+    ceoCharEl = ceoEl.querySelector('.char');
+  }
+
+  /* Same failure fitBubble exists to stop: a longer name running under the
+     border. Squeezed to fit rather than resizing the tag, so the badge stays
+     the same shape whoever wears it. Measure only while he is on screen - a
+     hidden node reports zero width. */
+  function fitBadge(root){
+    var t = root && root.querySelector('.badge-text');
+    if(!t || !t.getComputedTextLength) return;
+    t.removeAttribute('textLength');
+    t.removeAttribute('lengthAdjust');
+    var max = BADGE_W - 2 * BADGE_PAD;
+    if(t.getComputedTextLength() > max){
+      t.setAttribute('textLength', f(max));
+      t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+  }
+
+  function setCeoState(st){
+    if(ceoCharEl) ceoCharEl.setAttribute('data-state', st);
+  }
+
+  function ceoReset(){
+    clearTimeout(ceoTimer);
+    ceoEl.setAttribute('data-phase', 'away');
+    ceoEl.hidden = true;
+  }
+
+  function ceoTargetIndex(){
+    var want = ceoPickEl.value;
+    for(var i=0;i<characters.length;i++){
+      if(characters[i].name === want) return i;
+    }
+    return 0;
+  }
+
+  /* He walks in, plants himself and jabs a finger at whoever he has decided
+     is having it. If that is already the one the wheel landed on he still
+     walks in and still points - he is confirming it, not correcting it. */
+  function ceoIntervene(p){
+    var n = characters.length;
+    var target = ceoTargetIndex();
+    if(target < 0 || target >= n) target = 0;
+    var fast = reduceMotion();
+
+    ceoEl.hidden = false;
+    fitBadge(ceoCharEl);      /* only measurable now he is on screen */
+    setCeoState('walk');
+    /* lay him out at the off-screen edge before asking him to move, or the
+       transition has nothing to run from and he simply appears */
+    void ceoEl.offsetWidth;
+    ceoEl.setAttribute('data-phase', 'in');
+
+    function leave(){
+      setCeoState('walk');
+      ceoEl.setAttribute('data-phase', 'out');
+      ceoTimer = setTimeout(function(){
+        ceoEl.setAttribute('data-phase', 'away');
+        ceoEl.hidden = true;
+        spinBtn.disabled = false;
+      }, fast ? 0 : CEO_WALK);
+    }
+
+    function decree(){
+      setCeoState('decree');
+      var moved = target !== p;
+
+      /* Same arithmetic as the shove, and for the same reason: work out where
+         the slice has to end up rather than reading it back off a matrix that
+         is still moving. */
+      var seg   = 360/n;
+      var want  = mod(-target*seg, 360);
+      var cur   = mod(rotation, 360);
+      var delta = mod(want - cur, 360);
+      var ms    = CEO_TURN;
+
+      if(!moved){
+        /* His pick is already the one it landed on, so there is nowhere to
+           send it. He used to just stand there, which read as the gesture
+           having failed - he winds up to overrule the wheel and then nothing
+           happens. He gives it a full ceremonial lap instead, landing them
+           straight back under the pointer: the intervention everyone watches
+           and which changes nothing. It also squares the slice up, which a
+           spin leaves up to half a slice out. Take the short way round first
+           or a nearly-square wheel turns almost twice. */
+        if(delta > 180) delta -= 360;
+        delta += 360;
+        ms = CEO_LAP;
+      }
+
+      rotation += delta;
+      wheel.style.transition = 'transform ' + (fast ? 0 : ms)
+                             + 'ms cubic-bezier(.3,1.25,.5,1)';
+      void wheel.offsetWidth;
+      wheel.style.transform = 'rotate(' + rotation + 'deg)';
+      ceoTimer = setTimeout(function(){
+        settle(target, moved ? 'The CEO has spoken. ' : 'The CEO looked into it. ');
+        /* point made and the wheel moved: hands go on the hips and he says
+           his piece before walking off. speak() is told the net angle
+           outright - he is an upright overlay, not a slice, so there is no
+           slice angle or wheel rotation to undo. */
+        setCeoState('verdict');
+        speak(ceoCharEl, 'verdict', 0, 0, CEO_SAY_SCALE);
+        ceoTimer = setTimeout(leave, fast ? 0 : CEO_HOLD);
+      }, fast ? 0 : ms + 60);
+    }
+
+    clearTimeout(ceoTimer);
+    ceoTimer = setTimeout(decree, fast ? 0 : CEO_WALK);
+  }
   var SHOVE_HEAVE_PCT = 0.45;   /* the heave keyframe */
   /* Long enough to read the name and believe it, short enough to stay a
      punchline. 620ms landed before anyone had taken the result in; 1900ms
@@ -1331,14 +1738,22 @@ textarea{
 
   /* Measure an animation's length off a real character instead of repeating
      the number from the CSS. */
-  function animMs(state, sel){
-    var host = charEls[0];
+  function animMs(state, sel, host){
+    host = host || charEls[0];
     if(!host) return 0;
     var was = host.getAttribute('data-state');
     host.setAttribute('data-state', state);
     var node = host.querySelector(sel);
     var raw = node ? getComputedStyle(node).animationDuration.split(',')[0].trim() : '';
     host.setAttribute('data-state', was);
+    if(!raw) return 0;
+    return raw.slice(-2) === 'ms' ? parseFloat(raw) : parseFloat(raw) * 1000;
+  }
+
+  /* transition-duration off the stylesheet, same rule as animMs: never write
+     a duration down twice. */
+  function transMs(el){
+    var raw = el ? getComputedStyle(el).transitionDuration.split(',')[0].trim() : '';
     if(!raw) return 0;
     return raw.slice(-2) === 'ms' ? parseFloat(raw) : parseFloat(raw) * 1000;
   }
@@ -1353,6 +1768,9 @@ textarea{
     /* the wind-up holds its pose, so this only needs to outlast it */
     ACCEPT_BEAT  = (animMs('bristle', '.body-all') || 500) + 260;
     SHOVE_REST   = Math.max(SHOVE_STEP + 40, SHOVE_ANIM - SHOVE_HEAVE + 30);
+
+    CEO_WALK     = transMs(ceoEl) || 1250;
+    CEO_DECREE   = animMs('decree', '.jab-arm', ceoCharEl) || 900;
   }
 
   function reduceMotion(){
@@ -1395,6 +1813,7 @@ textarea{
   }
 
   function spin(){
+    ceoReset();
     if(spinning || !characters.length) return;
     endDrift();
     spinning = true;
@@ -1473,7 +1892,10 @@ textarea{
   function shove(p){
     var n = characters.length;
     var name = characters[p].name;
-    var pick = SHOVE_OPTIONS[Math.floor(Math.random() * SHOVE_OPTIONS.length)];
+    var opts = outcomes();
+    var pick = opts[Math.floor(Math.random() * opts.length)];
+
+    if(pick === 'ceo'){ ceoIntervene(p); return; }
 
     /* They square up either way; whether anything comes of it is the joke. */
     if(pick === 'accept'){
@@ -1550,6 +1972,17 @@ textarea{
   });
 
   /* ---------- photos ---------- */
+  function renderCeoPick(){
+    var want = ceoPickEl.value;
+    ceoPickEl.innerHTML = characters.map(function(c){
+      return '<option>' + esc(c.name) + '</option>';
+    }).join('');
+    /* hold the choice across an edit that leaves that name standing */
+    for(var i=0;i<characters.length;i++){
+      if(characters[i].name === want){ ceoPickEl.value = want; break; }
+    }
+  }
+
   function renderFaces(){
     facesEl.innerHTML = characters.map(function(c,i){
       var av = c.headImage
@@ -1563,6 +1996,8 @@ textarea{
                : '')
            + '</span>';
     }).join('');
+    /* the drawer's two name-driven lists stay in step from one place */
+    renderCeoPick();
   }
 
   function setHeadImage(index, url){
@@ -1702,7 +2137,8 @@ textarea{
   var opening = shuffled(DEFAULT_NAMES);
   var ALL_STATES = ['idle','nervous','panic','doomed','relieved',
                     'stomp','angry-right','angry-left','bristle','accept',
-                    'gloat','smug','cheer','gotcha-right','gotcha-left','ring'];
+                    'gloat','smug','cheer','gotcha-right','gotcha-left','ring',
+                    'walk','decree','verdict'];
 
   /* ------------------------------------------------------------------
      ?inspect - the contact sheet.
@@ -1858,6 +2294,7 @@ textarea{
   buildCharacters(opening);
   render();
   renderFaces();
+  buildCeo();      /* before syncTimings: his durations are read off him */
   syncTimings();
   restPose();
 })();

@@ -128,9 +128,74 @@ dealt from a shuffled deck, so with four or fewer survivors no two react the
 same way. Drawing independently gave three the same pose about half the time.
 
 Every landing ends one of exactly three ways, with equal odds: push right,
-push left, or cave. There is deliberately no probability gate on top and no
-no-repeat rule - both existed once and made the behaviour impossible to reason
-about or to see. Resist adding a layer here.
+push left, or cave - four, on the same flat odds, when the CEO is switched on.
+There is deliberately no probability gate on top and no no-repeat rule - both
+existed once and made the behaviour impossible to reason about or to see.
+Resist adding a layer here.
+
+The distinction that lets the CEO exist at all is that he is a fourth **entry**
+in `SHOVE_OPTIONS`, not a roll in front of it. "Sometimes the CEO turns up,
+otherwise the usual three" is the exact layering that was torn out once
+already. `outcomes()` returns a 3- or 4-element list and one flat pick is taken
+from it; if you ever find yourself writing a second `Math.random()` above that
+line, stop.
+
+## The CEO
+
+His name is Derk, and it is on a clip-on name tag on his shirt. The tag is
+`look.badge`, resolved through `%BADGE%` like every other feature - reaching
+for `BADGE` directly from `CHAR_MARKUP` would emit a silent `undefined`,
+because that string is built before the constant exists. Nobody else has one,
+and giving anyone one is a single line of look data. `fitBadge()` squeezes a
+name too long for the tag rather than resizing it, so the badge keeps its shape
+whoever wears it; the squeeze is meant to be the exception, so the box is sized
+so that ordinary names clear it untouched. It measures as rendered, which means
+it only works while he is on screen - a hidden node reports zero width.
+
+He is not on the wheel and is deliberately **not in `characters`** - he is an
+overlay (`#ceo`) that sits in the stage, outside `.wheel` so he never rotates
+with it. That keeps the first seam intact: `characters` is still the only
+source of truth for what is on the wheel.
+
+He reuses the character rig wholesale. `buildCeo()` calls the same
+`charMarkup()` everyone else gets, so his poses are ordinary `data-show`
+groups (`walk`, `decree`) and his face comes out of the same `HAIR` / `BEARD` /
+`GLASSES` tables - `tousled` and `shades` were added for him and are available
+to anyone. `lookVars()` is shared with `render()` for the same reason.
+
+Two things about him are worth not relearning:
+
+- **The mirrored lenses are filled, and that is load-bearing.** `%GLASSES%` is
+  drawn *after* the eye groups, so a filled lens simply covers whatever eyes
+  the current state shows and he never needs an eye pose of his own. His brows
+  do need their own group though - at the shared height they weld onto the top
+  of the frame and read as a thicker rim.
+- **His walk does not read from the legs.** House proportions put stubby legs
+  behind the torso, so the stride is nearly invisible; what sells it is the
+  horizontal travel, the arm swing and the body bob. Same lesson as the kick
+  that became a jump.
+
+His walk-in is a CSS transition on the container and his durations are read
+back off the stylesheet (`transMs()`, and `animMs()` now takes a host so it can
+be pointed at him) - no duration is written down twice.
+
+He then holds the `verdict` pose - finger down, hands on hips - and says a line
+before walking off. Two things that are easy to get wrong there:
+
+- **A translate percentage is of HIS OWN width**, which is a fraction of the
+  stage, and the stage is narrower than the window. `-118%`/`+132%` left him
+  parked beside the wheel, in full view, vanishing only when `hidden` was set.
+  The entrance and exit are anchored to the viewport instead. He therefore
+  overflows the document by a few hundred pixels on the way out, which is
+  exactly the overflow that used to raise a scrollbar and start the wheel
+  shaking - `html:has(.app){overflow:hidden}` is what makes it safe, so those
+  two things are now load-bearing for each other.
+- **A speech bubble is built in its owner's units.** He draws 2.87x the size of
+  a wheel character, so his bubble came out 2.87x too and covered most of the
+  wheel. `aimBubble()` takes a scale for this; it goes on `.bubble-aim` after
+  the translate, never on `.bubble`, which carries the pop animation - and an
+  animation overwrites the transform. He is also upright rather than riding a
+  slice, so `speak()` takes the net angle outright and his is simply 0.
 
 ## Before the first spin
 
@@ -166,6 +231,13 @@ fits.
 - A background tab throttles `setTimeout` to ~1/sec and stops rAF, so live
   timing measurements taken from a hidden tab are worthless. Reason from the
   constants instead, or bring the tab to the front.
+- **Browser-automation JS runs in an isolated world.** It shares the DOM but
+  *not* JS globals, so overriding `Math.random` from it silently does nothing
+  to the page while `document.getElementById(...)` works fine - which makes it
+  look like the stub took. Force an outcome by editing `outcomes()` in the file
+  and reverting, or drive it through the DOM. A `MutationObserver` is the
+  reliable way to catch a moment mid-sequence, because it fires on mutation
+  rather than on a timer that a background tab has throttled to ~1/sec.
 - Do not stub `Math.random()` by index. The call order shifts whenever a state
   gains a speech bubble or `settle()` needs another shuffled deck of
   reactions, and it has silently invalidated tests twice. Wrap it and log the
