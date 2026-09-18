@@ -1455,6 +1455,43 @@ body{
   }
 
   /* ---------- spin ---------- */
+  /* The one place the wheel turns. The Web Animations API rather than a CSS
+     transition, because the animation hands back its own `finished` promise
+     and nothing has to listen for an event.
+
+     That matters well beyond tidiness. transitionend BUBBLES: without an
+     `e.target === wheel` guard, ANY transition on ANY descendant ended the
+     spin, and adding a 0.7s transition to the characters once settled the
+     wheel 40ms before launch() had even turned it. There is no listener any
+     more, so that entire class of bug cannot come back.
+
+     The inline transform is set to the destination up front and the keyframes
+     run with fill:none, so the moment the animation ends the element is
+     already where it belongs - nothing to commit, nothing to clean up, and
+     `rotation` stays the single source of truth. Resolves true if it ran to
+     the end, false if something cancelled it. */
+  var wheelAnim = null;
+  function turnWheel(from, to, ms, easing){
+    if(wheelAnim){ wheelAnim.cancel(); wheelAnim = null; }
+    wheel.style.transform = 'rotate(' + to + 'deg)';
+    if(!ms) return Promise.resolve(true);
+    wheelAnim = wheel.animate(
+      [{ transform: 'rotate(' + from + 'deg)' },
+       { transform: 'rotate(' + to + 'deg)' }],
+      { duration: ms, easing: easing || 'linear', fill: 'none' });
+    return wheelAnim.finished.then(function(){ return true; },
+                                   function(){ return false; });
+  }
+
+  /* Freeze it where it visually is, not where it was heading. Read the angle
+     BEFORE cancelling: cancel drops the animation and the inline transform
+     (already the destination) takes over immediately. */
+  function freezeWheel(){
+    var live = mod(liveAngle(), 360);
+    if(wheelAnim){ wheelAnim.cancel(); wheelAnim = null; }
+    return live;
+  }
+
   function liveAngle(){
     var t = getComputedStyle(wheel).transform;
     if(!t || t === 'none') return 0;
@@ -1487,12 +1524,12 @@ body{
     if(spinning) rafId = requestAnimationFrame(tick);
   }
 
-  /* Durations are read out of the stylesheet at start-up (see syncTimings).
-     Only the keyframe PERCENTAGES live here, because those are the thing the
-     JS genuinely needs to know; a duplicated duration has already gone stale
-     once and silently truncated a pose. */
+  /* Only keyframe PERCENTAGES live in the JS. Nothing fires on reaching a
+     keyframe, so a mid-animation cue has to be a fraction of the duration -
+     but the duration is read off the running Animation now (animMs), never
+     written down here. */
   var STOMP_IMPACT_PCT = 0.74;  /* the landing keyframe */
-  var STOMP_ANIM, STOMP_IMPACT, STOMP_FOLLOW;
+  var stompMs = 0;              /* measured off the pose as it starts */
 
   /* When it fires, the picked one bristles and then does one of three things.
      A third of the time they cave, so the result only actually moves on about
@@ -1514,7 +1551,7 @@ body{
      There is no switch for any of it. Every ending is always in play. */
   var OUTCOMES = ['right', 'left', 'accept', 'accept', 'ceo'];
 
-  var CEO_WALK, CEO_DECREE, ceoTimer, ceoCharEl = null;
+  var ceoTimer, ceoCharEl = null;
   var CEO_TURN = 620;   /* the wheel swinging round to the slice he picked */
   var CEO_LAP  = 980;   /* the full lap he gives it when it is already there */
   var CEO_HOLD = 1700;  /* long enough to read his line before he walks off */
@@ -1592,7 +1629,7 @@ body{
         ceoEl.setAttribute('data-phase', 'away');
         ceoEl.hidden = true;
         spinBtn.disabled = false;
-      }, fast ? 0 : CEO_WALK);
+      }, fast ? 0 : animMs(ceoEl) + 40);
     }
 
     function decree(){
@@ -1622,11 +1659,9 @@ body{
         ms = CEO_LAP;
       }
 
+      var ceoFrom = rotation;
       rotation += delta;
-      wheel.style.transition = 'transform ' + (fast ? 0 : ms)
-                             + 'ms cubic-bezier(.3,1.25,.5,1)';
-      void wheel.offsetWidth;
-      wheel.style.transform = 'rotate(' + rotation + 'deg)';
+      turnWheel(ceoFrom, rotation, fast ? 0 : ms, 'cubic-bezier(.3,1.25,.5,1)');
       ceoTimer = setTimeout(function(){
         settle(target, moved ? 'The CEO has spoken. ' : 'The CEO looked into it. ');
         /* point made and the wheel moved: hands go on the hips and he says
@@ -1640,7 +1675,10 @@ body{
     }
 
     clearTimeout(ceoTimer);
-    ceoTimer = setTimeout(decree, fast ? 0 : CEO_WALK);
+    /* his walk in is a CSS transition, and getAnimations() hands those back
+       just the same as an animation */
+    if(fast) decree();
+    else settled(ceoEl).then(function(){ if(!ceoEl.hidden) decree(); });
   }
   var SHOVE_HEAVE_PCT = 0.45;   /* the heave keyframe */
   /* Long enough to read the name and believe it, short enough to stay a
@@ -1648,43 +1686,50 @@ body{
      sagged. */
   var SHOVE_BEAT   = 1100;
   var SHOVE_STEP   = 430;  /* how long the wheel takes to clunk round one slice */
-  var SHOVE_ANIM, SHOVE_HEAVE, ACCEPT_BEAT, SHOVE_REST;
 
   /* Measure an animation's length off a real character instead of repeating
      the number from the CSS. */
-  function animMs(state, sel, host){
-    host = host || charEls[0];
-    if(!host) return 0;
-    var was = host.getAttribute('data-state');
-    host.setAttribute('data-state', state);
-    var node = host.querySelector(sel);
-    var raw = node ? getComputedStyle(node).animationDuration.split(',')[0].trim() : '';
-    host.setAttribute('data-state', was);
-    if(!raw) return 0;
-    return raw.slice(-2) === 'ms' ? parseFloat(raw) : parseFloat(raw) * 1000;
+  /* What is actually running on this element and everything under it.
+     Infinite loops are skipped: an idle breath never finishes, and waiting on
+     one would hang the sequence for ever. CSS transitions come back from
+     getAnimations() too, so the CEO's slide is covered by the same code. */
+  function running(el){
+    if(!el || !el.getAnimations) return [];
+    return el.getAnimations({ subtree: true }).filter(function(a){
+      var t = a.effect && a.effect.getTiming ? a.effect.getTiming() : null;
+      return t && t.iterations !== Infinity && typeof t.duration === 'number';
+    });
   }
 
-  /* transition-duration off the stylesheet, same rule as animMs: never write
-     a duration down twice. */
-  function transMs(el){
-    var raw = el ? getComputedStyle(el).transitionDuration.split(',')[0].trim() : '';
-    if(!raw) return 0;
-    return raw.slice(-2) === 'ms' ? parseFloat(raw) : parseFloat(raw) * 1000;
+  /* How long the current animations last. Read off the Animation objects the
+     browser built, so no duration is ever written down twice - this replaces
+     syncTimings(), which used to flip a character through every state at
+     start-up and parse durations back out of the stylesheet. */
+  function animMs(el){
+    var ms = 0;
+    running(el).forEach(function(a){
+      var t = a.effect.getTiming();
+      var total = (t.duration || 0) + (t.delay || 0);
+      if(total > ms) ms = total;
+    });
+    return Math.round(ms);
   }
 
-  function syncTimings(){
-    STOMP_ANIM   = animMs('stomp', '.body-all') || 1000;
-    STOMP_IMPACT = Math.round(STOMP_ANIM * STOMP_IMPACT_PCT);
-    STOMP_FOLLOW = STOMP_ANIM - STOMP_IMPACT + 40;
+  /* Resolves when they are done. Raced against a timeout taken from the same
+     Animation objects, because a background tab never advances them and
+     `finished` would simply never settle - which would leave the spin button
+     disabled for ever if someone switched tabs mid-spin. */
+  function settled(el){
+    var runs = running(el);
+    if(!runs.length) return Promise.resolve();
+    var done = Promise.all(runs.map(function(a){
+      return a.finished.catch(function(){});
+    }));
+    return Promise.race([done, wait(animMs(el) + 150)]);
+  }
 
-    SHOVE_ANIM   = animMs('angry-right', '.body-all') || 1000;
-    SHOVE_HEAVE  = Math.round(SHOVE_ANIM * SHOVE_HEAVE_PCT);
-    /* the wind-up holds its pose, so this only needs to outlast it */
-    ACCEPT_BEAT  = (animMs('bristle', '.body-all') || 500) + 260;
-    SHOVE_REST   = Math.max(SHOVE_STEP + 40, SHOVE_ANIM - SHOVE_HEAVE + 30);
-
-    CEO_WALK     = transMs(ceoEl) || 1250;
-    CEO_DECREE   = animMs('decree', '.jab-arm', ceoCharEl) || 900;
+  function wait(ms){
+    return new Promise(function(res){ setTimeout(res, ms); });
   }
 
   function reduceMotion(){
@@ -1699,10 +1744,9 @@ body{
      have put pointerIndex() out. */
   function drift(){
     if(spinning) return;
-    wheel.style.transition = 'transform ' + DRIFT_MS + 'ms linear';
-    void wheel.offsetWidth;
+    var from = rotation;
     rotation += 360;
-    wheel.style.transform = 'rotate(' + rotation + 'deg)';
+    turnWheel(from, rotation, DRIFT_MS, 'linear');
     driftTimer = setTimeout(drift, DRIFT_MS);
   }
 
@@ -1719,11 +1763,9 @@ body{
     clearTimeout(driftTimer);
     if(!wheel.classList.contains('resting')) return;
     wheel.classList.remove('resting');
-    var live = mod(liveAngle(), 360);
+    var live = freezeWheel();
     rotation = Math.floor(rotation / 360) * 360 + live;
-    wheel.style.transition = 'none';
     wheel.style.transform = 'rotate(' + rotation + 'deg)';
-    void wheel.offsetWidth;
   }
 
   function spin(){
@@ -1745,13 +1787,16 @@ body{
 
     clearTimeout(stompTimer);
     clearTimeout(shoveTimer);
-    stompTimer = setTimeout(launch, reduceMotion() ? 0 : STOMP_IMPACT);
+    stompMs = animMs(charEls[stomper]);
+    stompTimer = setTimeout(launch,
+      reduceMotion() ? 0 : Math.round(stompMs * STOMP_IMPACT_PCT));
   }
 
   function launch(){
     if(!spinning) return;
     wheel.classList.add('spinning');
     var dur = 4800 + Math.random()*1200;
+    var spunFrom = rotation;
     rotation += 360*(7 + Math.floor(Math.random()*4)) + Math.random()*360;
 
     /* Launches hard and sheds speed the way a wheel does under friction: the
@@ -1765,15 +1810,14 @@ body{
        turning more (7-10) in less time (4.8-6.0s), which keeps the crawl below
        40deg/s down to 0.7s, shorter than the 1.2s it used to be. Work the
        numbers before touching any of the three - they only hold together. */
-    wheel.style.transition = 'transform ' + Math.round(dur)
-                           + 'ms cubic-bezier(.12,.78,.42,1)';
-    void wheel.offsetWidth;
-    wheel.style.transform = 'rotate(' + rotation + 'deg)';
+    turnWheel(spunFrom, rotation, Math.round(dur), 'cubic-bezier(.12,.78,.42,1)')
+      .then(function(ran){ if(ran) stop(); });
 
     /* let the leg finish its swing before the fear loop repaints everyone */
     cancelAnimationFrame(rafId);
     clearTimeout(holdTimer);
-    holdTimer = setTimeout(tick, reduceMotion() ? 0 : STOMP_FOLLOW);
+    holdTimer = setTimeout(tick,
+      reduceMotion() ? 0 : Math.round(stompMs * (1 - STOMP_IMPACT_PCT)) + 40);
     clearTimeout(stopTimer);
     stopTimer = setTimeout(stop, dur + 80);
   }
@@ -1813,11 +1857,17 @@ body{
     /* They square up either way; whether anything comes of it is the joke. */
     if(pick === 'accept'){
       setState(p, 'bristle');
-      shoveTimer = setTimeout(function(){
+      var giveUp = function(){
         setState(p, 'accept');
         resultEl.textContent = name + ' almost passed it on. Still ' + name + '.';
         spinBtn.disabled = false;
-      }, reduceMotion() ? 0 : ACCEPT_BEAT);
+      };
+      if(reduceMotion()) giveUp();
+      /* the wind-up holds its pose at the end, so let it actually finish and
+         hang there a beat before they cave */
+      else settled(charEls[p]).then(function(){
+        shoveTimer = setTimeout(giveUp, 260);
+      });
       return;
     }
 
@@ -1837,10 +1887,9 @@ body{
       var seg = 360 / n;
       var target = mod(-victim * seg, 360);
       var cur = mod(rotation, 360);
+      var shoveFrom = rotation;
       rotation += dir > 0 ? mod(target - cur, 360) : -mod(cur - target, 360);
-      wheel.style.transition = 'transform ' + ms + 'ms cubic-bezier(.34,1.28,.64,1)';
-      void wheel.offsetWidth;
-      wheel.style.transform = 'rotate(' + rotation + 'deg)';
+      turnWheel(shoveFrom, rotation, ms, 'cubic-bezier(.34,1.28,.64,1)');
       setTimeout(function(){
         settle(victim, name + ' wasn’t having it. ');
         /* The shover was in the firing line a second ago and got out of it by
@@ -1849,11 +1898,13 @@ body{
            slice they shoved it to. */
         setState(p, dir > 0 ? 'gotcha-left' : 'gotcha-right');
         spinBtn.disabled = false;
-      }, reduceMotion() ? 0 : SHOVE_REST);
+      }, reduceMotion() ? 0 : Math.max(ms + 40, shoveMs - heave + 30));
     };
 
+    var shoveMs = animMs(charEls[p]);
+    var heave = Math.round(shoveMs * SHOVE_HEAVE_PCT);
     if(reduceMotion()) step();
-    else shoveTimer = setTimeout(step, SHOVE_HEAVE);
+    else shoveTimer = setTimeout(step, heave);
   }
 
   function stop(){
@@ -1875,14 +1926,6 @@ body{
       spinBtn.disabled = false;
     }
   }
-
-  /* transitionend BUBBLES. Without the target check, any transition on
-     anything inside the wheel ends the spin - the ring releasing its hold at
-     0.7s was landing 40ms before launch() and settling the wheel without it
-     ever turning. Only the wheel's own transform may stop a spin. */
-  wheel.addEventListener('transitionend', function(e){
-    if(e.target === wheel && e.propertyName === 'transform') stop();
-  });
 
 
   /* ---------- per-character menu ---------- */
@@ -2235,8 +2278,7 @@ body{
 
   buildCharacters(opening);
   render();
-  buildCeo();      /* before syncTimings: his durations are read off him */
-  syncTimings();
+  buildCeo();
   restPose();
 })();
 </script>

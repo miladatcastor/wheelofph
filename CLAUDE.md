@@ -109,16 +109,38 @@ name, and bubbles rotated out by exactly one slice.
 element that has both attributes, which nothing does, and that state renders
 as a faceless blob with no error anywhere.
 
-**`transitionend` bubbles.** The listener that ends a spin lives on `.wheel`,
-so without a `e.target === wheel` check *any* transition on *anything* inside
-the wheel ends the spin. Adding a 0.7s transition to the characters was enough:
-it landed 40ms before `launch()` and settled the wheel without it ever turning.
-Note this cannot be reproduced in a background tab, where transitions never run
-at all - dispatch a synthetic bubbling `transitionend` to test it.
+**`transitionend` bubbles - and that is why the wheel no longer uses one.**
+The listener that ended a spin lived on `.wheel`, so without an
+`e.target === wheel` check *any* transition on *anything* inside the wheel
+ended it. Adding a 0.7s transition to the characters was enough: it landed
+40ms before `launch()` and settled the wheel without it ever turning.
+`turnWheel()` uses the Web Animations API now and waits on the animation's own
+`finished` promise, so there is no listener and nothing to bubble into it. If
+you are ever tempted to go back to a CSS transition here, this is the bug you
+are re-inviting.
 
-**Never duplicate a CSS duration in JS.** `syncTimings()` reads them off the
-stylesheet at start-up; only keyframe *percentages* belong in JS. A hand-copied
-duration once truncated the cave animation to 56%, cutting it off mid-lunge.
+**Never duplicate a CSS duration in JS - ask the browser instead.** A
+hand-copied duration once truncated the cave animation to 56%, cutting it off
+mid-lunge. There used to be a `syncTimings()` that flipped a character through
+every state at start-up and parsed durations back out of the stylesheet; it is
+gone. `running(el)` returns the Animations actually on an element and its
+subtree, `animMs(el)` the longest of them, and `settled(el)` a promise for when
+they are done. CSS transitions come back from `getAnimations()` too, so the
+CEO's slide is covered by the same three functions.
+
+Two things that are load-bearing there:
+
+- **Infinite animations are filtered out.** An idle breath never finishes, and
+  waiting on one hangs the sequence for ever.
+- **`settled()` races `finished` against a timeout** taken from the same
+  Animation objects. A background tab never advances animations, so `finished`
+  would simply never settle - and the spin button would stay disabled for ever
+  if someone switched tabs mid-spin. The timeout is not a duplicated duration:
+  it is read off the very animation being waited on.
+
+Only keyframe *percentages* still live in JS (`STOMP_IMPACT_PCT`,
+`SHOVE_HEAVE_PCT`), because nothing fires on reaching a keyframe - but they are
+multiplied by a duration measured at runtime, not by one written down twice.
 
 **The page must never be able to raise a scrollbar.** `.wheel` is a square
 that is permanently rotating, and the axis-aligned bounding box of a rotating
