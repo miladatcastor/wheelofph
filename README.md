@@ -30,13 +30,13 @@ under the pointer panics, its neighbours go nervous, everyone else idles.
 On stop the winner is doomed, and **every** landing then ends one of exactly
 three ways: the winner shoves the wheel a notch right, shoves it a notch left
 (landing a neighbour in it), or squares up and thinks better of it. Taking the
-hit is twice as likely as either shove. Whoever shoves it away points at the person they just landed it on.
+hit is much the likeliest ending. Whoever shoves it away points at the person they just landed it on.
 Everyone who escapes gets one of four reactions — relieved, gloating, smug or
 cheering — dealt so that no two of them react the same way.
 
 There is a fourth ending too, as likely as a shove either way — not a chance
-layered on top of the others. That makes it 40% take the hit, 20% each for a
-shove right, a shove left, and Derk. Derk walks
+layered on top of the others. That makes it **60% take the hit**, and 13.3%
+each for a shove right, a shove left, and Derk. Derk walks
 in, towers over the ring, plants himself and jabs a finger at somebody picked
 at random, and the wheel goes wherever he says regardless of where it actually
 landed. Everyone is in that draw, including whoever the wheel just landed on —

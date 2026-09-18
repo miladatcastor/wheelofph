@@ -243,16 +243,19 @@ dealt from a shuffled deck, so with four or fewer survivors no two react the
 same way. Drawing independently gave three the same pose about half the time.
 
 Every landing ends one of exactly four ways: push right, push left, cave, or
-the CEO. Caving is deliberately twice as likely as any single one of the
-others; the three that pass it on or bring Derk in are equally likely to each
-other.
+the CEO. Caving is the common one; the three that pass it on or bring Derk in
+split what is left, equally.
 
-    accept 2/5 = 40%    right 1/5    left 1/5    ceo 1/5
+    accept 60%    right 13.3%    left 13.3%    ceo 13.3%
 
-**The weighting is the shape of the list, nothing else** - `OUTCOMES` holds
-`accept` twice, and one flat pick is taken from it. Repeating an entry is not a
+**The weighting is the shape of the list, nothing else.** `WEIGHTS` is
+`{accept:9, right:2, left:2, ceo:2}`, `OUTCOMES` expands it once at start-up,
+and one flat pick is taken from that. 9:2:2:2 out of 15 is the smallest whole
+number way of writing 60/13.3/13.3/13.3 exactly - 40% does not divide into
+three neatly, and a shorter list can only approximate it by making the three
+unequal, which is the one thing they must not be. Repeating entries is not a
 layer: it is still one roll you can read in one line, and changing the balance
-means changing that line.
+means changing those four numbers.
 
 What IS a layer is a second roll in front of it, a probability gate, or a
 no-repeat rule. All three existed once and made the behaviour impossible to
