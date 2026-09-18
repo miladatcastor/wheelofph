@@ -156,6 +156,19 @@ grows back - every frame, which reads as the wheel shaking itself.
 scroll. Nothing is lost by clipping - what spills past the viewport is the
 empty corner of the wheel's bounding box.
 
+**The stage has to be genuinely square, not merely `aspect-ratio:1`.** In a
+flex column the block axis is flex-driven, so `flex:1 1 auto` grew the height
+and `max-width` then capped the width - aspect-ratio loses that argument and
+you get a tall box. The wheel still draws round, because the SVG letterboxes,
+so it is easy to miss; what gives it away is `.wheel-wrap`, which is `inset:0`
+with `border-radius:50%` and so stretches its pale shadow ring into a big egg
+around a circular wheel. The pointer detaches and floats above the rim too. At
+520x1000 the stage came out 496x863. It is sized from the container now
+(`width:min(100cqw, calc(100cqh - 3rem))`), so neither axis is left to the
+flex algorithm; the 3rem is the result line plus the gap and only bites when
+height is the limit. Wrapped in `@supports (width: 1cqw)` so a browser without
+container queries keeps the old behaviour instead of collapsing the stage.
+
 ## Animation has to survive a screen share
 
 This gets shared as a Chrome tab on calls, which caps at ~30fps and adapts

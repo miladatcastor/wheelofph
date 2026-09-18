@@ -92,6 +92,23 @@ body{
 /* ---------- wheel ---------- */
 .stage{position:relative;flex:1 1 auto;min-height:0;aspect-ratio:1;
   max-width:100%;max-height:100%;margin:0 auto}
+/* The stage has to be genuinely SQUARE, not merely aspect-ratio:1. In a flex
+   column the block axis is flex-driven, so `flex:1 1 auto` grows the height
+   and max-width then caps the width - aspect-ratio loses and you get a tall
+   box. The wheel itself still draws round, because the SVG letterboxes, but
+   .wheel-wrap is inset:0 with border-radius:50%, so its pale shadow ring
+   stretches into a big egg around a circular wheel. Very visible on a narrow
+   screen: at 520x1000 the stage came out 496x863.
+   Sizing it from the container instead makes it square everywhere, because
+   neither axis is left to the flex algorithm. The ~3rem is the result line
+   plus the gap; it only bites when height is the limit, since min() takes
+   the smaller. Guarded, so a browser without container queries keeps the old
+   behaviour rather than collapsing the stage to nothing. */
+@supports (width: 1cqw){
+  .col{container-type:size}
+  .stage{flex:none;width:min(100cqw, calc(100cqh - 3rem));height:auto;
+    max-width:none;max-height:none}
+}
 .wheel-wrap{position:absolute;inset:0;border-radius:50%;box-shadow:0 12px 34px var(--shadow)}
 .wheel{width:100%;height:100%;will-change:transform;transform:rotate(0deg)}
 .wheel svg{display:block;width:100%;height:100%;overflow:visible}
@@ -449,11 +466,6 @@ body{
   font-size:clamp(16px,2.2vw,22px);font-weight:650;min-height:1.5em;
 }
 
-/* Below the breakpoint the wheel is limited by width rather than by height. */
-@media (max-width:819px){
-  .app{height:100dvh}
-  .stage{max-width:100%}
-}
 
 
 
