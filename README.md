@@ -52,7 +52,9 @@ frame-by-frame strips for the animated ones.
 
 Use it. Nearly every art bug in this file was invisible at 300px and obvious
 at true size — scowling "worried" brows, bug eyes, a missing arm, a notch in
-the hair. It also runs the transform audit (below) and turns red on a hit.
+the hair. It also runs three audits and turns red on a hit: that every
+`@keyframes` is defined, used and actually moves something; the transform trap
+(below); and that every speech line fits its bubble.
 
 ## How it is put together
 

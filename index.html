@@ -1993,6 +1993,115 @@ body{
     return box;
   }
 
+  /* Two ways a stylesheet dies in complete silence, both of which have
+     already cost an afternoon:
+
+       - an invalid value inside a keyframe is DROPPED and nothing is said.
+         `translateY(2.6)` with no unit is invalid, so every stop that used it
+         vanished, the block still parsed, and the animation ran perfectly
+         while moving nothing. It looked plausible in a screenshot, which is
+         worse than looking broken.
+       - a stray brace makes the parser swallow a whole @keyframes block. The
+         name still resolves - getComputedStyle happily reports
+         animationName: diveRight - but no motion is defined, so the element
+         sits at the identity matrix.
+
+     Neither logs a thing. Between them they are the most expensive class of
+     bug in this file, because CSS never tells you it ignored you. */
+  function animationAudit(){
+    var bad = [], defined = {}, used = {}, text = '';
+
+    function walk(rules){
+      for(var i = 0; i < rules.length; i++){
+        var r = rules[i];
+        if(r.type === 7){ defined[r.name] = r; continue; }   /* @keyframes */
+        /* Read the rule BEFORE recursing. Since CSS nesting landed, every
+           CSSStyleRule carries a cssRules list of its own, and an empty list
+           is still truthy - branching on it first skips every real rule in
+           the sheet and the audit reports the whole file as unused. */
+        var n = r.style && r.style.animationName;
+        if(n && n !== 'none'){
+          n.split(',').forEach(function(nm){ used[nm.trim()] = true; });
+        }else if(r.cssText){
+          /* A var() anywhere in the `animation` shorthand makes the whole
+             thing a pending substitution, and every longhand then reads back
+             as an empty string - so the four rules that stagger with var(--d)
+             look unused to the CSSOM. Fall back to the text. */
+          text += r.cssText + '\n';
+        }
+        if(r.cssRules && r.cssRules.length) walk(r.cssRules);  /* @media etc */
+      }
+    }
+    try { walk(document.styleSheets[0].cssRules); }
+    catch(e){ return ['stylesheet unreadable: ' + e.message]; }
+
+    Object.keys(defined).forEach(function(nm){
+      if(!used[nm] && new RegExp('animation[^;{}]*\\b' + nm + '\\b').test(text)){
+        used[nm] = true;
+      }
+    });
+
+    /* referenced but undefined: a brace ate the block */
+    Object.keys(used).forEach(function(nm){
+      if(!defined[nm]) bad.push(nm + ': used but no @keyframes - a brace ate it');
+    });
+
+    /* Ground truth: RUN each block on a probe and see whether anything
+       actually changes. Reading the declarations cannot tell you this, and I
+       tried - a dropped value leaves behind a stop that still carries its
+       timing function, so the block looks fully populated while animating
+       nothing at all. Scrubbing a paused animation works even in a
+       background tab, where nothing would otherwise be running. */
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;width:10px;height:10px';
+    /* The probe needs a character's context. Some keyframes are written as
+       calc(-6deg * var(--dir)), and on a bare element --dir is unset, which
+       makes the whole calc invalid - so a perfectly good block animates
+       nothing on the probe and gets reported as dead. Anything a keyframe
+       reads has to be defined here; today that is only --dir, a +-1 mirror
+       multiplier, so 1 is the right stand-in. */
+    probe.style.setProperty('--dir', '1');
+    document.body.appendChild(probe);
+
+    Object.keys(defined).forEach(function(nm){
+      var stops = defined[nm].cssRules, props = {};
+      for(var k = 0; k < stops.length; k++){
+        var st = stops[k].style;
+        for(var q = 0; q < st.length; q++){
+          if(st[q] !== 'animation-timing-function') props[st[q]] = true;
+        }
+      }
+      var list = Object.keys(props);
+      if(!list.length){ bad.push(nm + ': declares nothing'); return; }
+      for(var e = 0; e < stops.length; e++){
+        if(!stops[e].style.length){
+          bad.push(nm + ' at ' + stops[e].keyText + ': empty stop, every '
+                   + 'declaration in it was rejected');
+        }
+      }
+
+      /* `both` matters: without a fill the last sample lands after the
+         animation has ended, the property snaps back to its base value, and
+         that counts as a change - so a completely dead block looks alive. */
+      probe.style.animation = nm + ' 1s linear both';
+      probe.style.animationPlayState = 'paused';
+      var seen = {};
+      for(var f = 0; f <= 10; f++){
+        probe.style.animationDelay = (-f / 10) + 's';
+        var cs = getComputedStyle(probe);
+        list.forEach(function(pr){
+          (seen[pr] = seen[pr] || {})[cs.getPropertyValue(pr)] = true;
+        });
+      }
+      probe.style.animation = '';
+      var moves = list.some(function(pr){ return Object.keys(seen[pr]).length > 1; });
+      if(!moves) bad.push(nm + ': runs but nothing changes - a value was dropped');
+      if(!used[nm]) bad.push(nm + ': defined but never used');
+    });
+    probe.remove();
+    return bad;
+  }
+
   /* The trap that has bitten this file three times: a CSS transform silently
      overwrites an element's SVG transform attribute. Anything holding both is
      a bug waiting to happen. A TRANSITION on transform does it just as surely
@@ -2067,6 +2176,11 @@ body{
       p.textContent = bad.length ? badText + ' - ' + bad.join(' | ') : okText;
       page.appendChild(p);
     }
+
+    note(animationAudit(),
+         'keyframe audit clean - every @keyframes is defined, used, and '
+         + 'actually moves something.',
+         'dead keyframes');
 
     note(transformAudit(),
          'transform audit clean - no element carries both an SVG transform '

@@ -39,6 +39,39 @@ Judging poses at large size alone will mislead you. Check both.
 
 ## Three traps that have already bitten
 
+**CSS never tells you it ignored you, and that is the most expensive class of
+bug in this file.** Two silent deaths, both of which have cost an afternoon:
+an invalid value inside a keyframe is dropped and the block still parses
+(`translateY(2.6)` with no unit - every stop using it vanished, the animation
+ran perfectly and moved nothing); and a stray brace makes the parser swallow a
+whole `@keyframes`, after which the name still resolves - `getComputedStyle`
+happily reports `animationName: diveRight` - but the element sits at the
+identity matrix. Neither logs anything, and both look plausible in a
+screenshot, which is worse than looking broken.
+
+`animationAudit()` in `?inspect` catches both. It does not read the
+declarations to decide whether a block works, because it cannot: a dropped
+value leaves a stop that still carries its timing function, so the block looks
+fully populated. It **runs** each block on a probe element and samples whether
+anything actually changes. Four things about it are load-bearing, all learned
+by getting them wrong:
+
+- the probe animation needs **`both`**, or the last sample lands after the
+  animation has ended, the property snaps back to its base value, and a
+  completely dead block reads as alive;
+- the probe needs **`--dir`** set, because some keyframes are written as
+  `calc(-6deg * var(--dir))` and an unset custom property makes the whole
+  calc invalid - the block then animates nothing *on the probe* and gets
+  reported as dead. Anything a keyframe reads has to exist on the probe;
+- walking the stylesheet must read each rule **before** recursing. Since CSS
+  nesting landed, every `CSSStyleRule` has a `cssRules` list of its own and an
+  empty list is truthy, so branching on it first skips every real rule and the
+  audit calls the whole file unused;
+- a `var()` anywhere in the `animation` **shorthand** makes it a pending
+  substitution and every longhand reads back as an empty string, so the rules
+  that stagger with `var(--d)` look unused to the CSSOM. There is a text
+  fallback for exactly those.
+
 **A CSS animation silently overwrites an element's SVG `transform` attribute.**
 Hit three times: the sweat drop rendered at the body origin, the head shape
 snapped round mid-animation, the speech bubble text came out tilted. The fix is
