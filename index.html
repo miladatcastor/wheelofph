@@ -1516,10 +1516,30 @@ body{
     }
   }
 
+  /* Where the wheel LOOKS right now. Correct for the fear loop, which wants
+     the live position while it is still turning, and wrong for anything that
+     decides an outcome - see targetIndex. */
   function pointerIndex(){
     var n = characters.length;
     if(!n) return -1;
     return mod(Math.round(-liveAngle()/(360/n)), n);
+  }
+
+  /* Where the wheel IS, according to `rotation` - the target, and the single
+     source of truth for where it has got to.
+
+     Anything that decides who is picked must use this and not pointerIndex().
+     stop() runs either off the animation's `finished` promise or off the
+     stopTimer backstop, and in a background tab the animation timeline never
+     advances - so the backstop fires while the matrix still holds the
+     PRE-SPIN angle, and the wheel announces whoever was under the pointer
+     before you spun while visibly sitting somewhere else. Identical to
+     pointerIndex() whenever the animation really has finished, because
+     mod(round(-x/seg), n) is unchanged by adding whole turns to x. */
+  function targetIndex(){
+    var n = characters.length;
+    if(!n) return -1;
+    return mod(Math.round(-rotation/(360/n)), n);
   }
 
   /* live loop: fear spreads outward from whatever is under the pointer */
@@ -1794,7 +1814,7 @@ body{
         if(characters[k].name === chosenJumper) stomper = k;
       }
     }
-    if(stomper < 0) stomper = pointerIndex();
+    if(stomper < 0) stomper = targetIndex();
     for(var i=0;i<characters.length;i++) setState(i, i === stomper ? 'stomp' : 'idle');
 
     clearTimeout(stompTimer);
@@ -1928,7 +1948,7 @@ body{
     clearTimeout(stompTimer);
     clearTimeout(holdTimer);
 
-    var p = pointerIndex();
+    var p = targetIndex();
     settle(p);
 
     if(p >= 0 && shouldShove()){
@@ -2046,6 +2066,53 @@ body{
       });
     }
     return box;
+  }
+
+  /* The wheel can be geometrically wrong while still LOOKING round, which is
+     how the egg survived so long: the SVG letterboxes, so the wheel itself
+     draws as a circle whatever shape its box is. What gives it away is
+     .wheel-wrap - inset:0 with border-radius:50% - stretching its pale
+     shadow ring into an ellipse, and the pointer floating off the rim.
+
+     None of that is visible at the one viewport you happen to be looking at,
+     so this squeezes the real app through a range of sizes and checks the
+     invariants at each. It works by constraining .app itself rather than the
+     window, which JS cannot resize: everything that matters here (the flex
+     column, the container query units the stage is sized from) follows .app.
+     Only `vw` units do not, which affects nothing but the result line's font
+     size. Runs before ?inspect replaces the body, while the app is still up. */
+  function layoutAudit(){
+    var app = document.querySelector('.app');
+    var stage = document.querySelector('.stage');
+    var wrap = document.querySelector('.wheel-wrap');
+    var rim = document.querySelector('.rim');
+    var ptr = document.querySelector('.pointer');
+    var res = document.querySelector('.result');
+    if(!app || !stage || !wrap || !rim || !ptr || !res) return ['nothing to measure'];
+
+    var bad = [], w0 = app.style.width, h0 = app.style.height;
+    [[380,820],[414,896],[520,1000],[560,613],[768,500],[900,450],
+     [1280,800],[1920,1080]].forEach(function(size){
+      app.style.width  = size[0] + 'px';
+      app.style.height = size[1] + 'px';
+      var st = stage.getBoundingClientRect(), wr = wrap.getBoundingClientRect(),
+          rm = rim.getBoundingClientRect(),   pt = ptr.getBoundingClientRect(),
+          rs = res.getBoundingClientRect(),   ap = app.getBoundingClientRect();
+      var at = size[0] + 'x' + size[1] + ': ';
+      if(Math.abs(st.width - st.height) > 1.5){
+        bad.push(at + 'stage ' + Math.round(st.width) + 'x' + Math.round(st.height)
+                    + ' is not square');
+      }
+      if(Math.abs(wr.width - wr.height) > 1.5) bad.push(at + 'the halo is an ellipse');
+      /* the pointer has to sit ON the rim, not float above a too-tall box */
+      if(pt.bottom - rm.top > 26) bad.push(at + 'the pointer is '
+        + Math.round(pt.bottom - rm.top) + 'px off the rim');
+      if(st.left < ap.left - 0.5 || st.right > ap.right + 0.5) bad.push(at + 'the wheel is wider than the app');
+      if(rs.bottom > ap.bottom + 0.5) bad.push(at + 'the result line is pushed off');
+      if(rm.width < 80) bad.push(at + 'the wheel has collapsed to ' + Math.round(rm.width) + 'px');
+    });
+    app.style.width = w0; app.style.height = h0;
+    return bad;
   }
 
   /* Two ways a stylesheet dies in complete silence, both of which have
@@ -2231,6 +2298,11 @@ body{
       p.textContent = bad.length ? badText + ' - ' + bad.join(' | ') : okText;
       page.appendChild(p);
     }
+
+    note(layoutAudit(),
+         'layout audit clean - the stage stays square, the halo stays round '
+         + 'and the pointer stays on the rim from 380px to 1920px.',
+         'layout');
 
     note(animationAudit(),
          'keyframe audit clean - every @keyframes is defined, used, and '

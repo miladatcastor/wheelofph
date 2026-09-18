@@ -101,8 +101,21 @@ bubble always sits above and right of the head at any angle.
 
 **Never measure the wheel mid-transition.** Use the `rotation` variable, which
 is the target, not `liveAngle()`, which reads the matrix as it currently
-stands. This has caused two separate bugs: the shove announcing the wrong
-name, and bubbles rotated out by exactly one slice.
+stands. This has caused three separate bugs: the shove announcing the wrong
+name, bubbles rotated out by exactly one slice, and - for a long time -
+`stop()` itself. There are two functions now and the difference is the whole
+point:
+
+- `pointerIndex()` reads the matrix. Correct **only** for the fear loop, which
+  wants the live position while the wheel is still turning.
+- `targetIndex()` reads `rotation`. Anything deciding **who is picked** uses
+  this. `stop()` runs off either the animation's `finished` promise or the
+  stopTimer backstop, and a background tab never advances the timeline - so
+  the backstop fired while the matrix still held the PRE-SPIN angle and the
+  wheel announced whoever was under the pointer before you spun, while
+  visibly sitting somewhere else entirely. The two agree whenever the
+  animation really finished, since `mod(round(-x/seg), n)` is unchanged by
+  adding whole turns.
 
 **Mind the descendant space in the state CSS.** `.char[data-state="x"]
 [data-show~="x"]` needs the space; without it the selector matches a single
@@ -168,6 +181,16 @@ around a circular wheel. The pointer detaches and floats above the rim too. At
 flex algorithm; the 3rem is the result line plus the gap and only bites when
 height is the limit. Wrapped in `@supports (width: 1cqw)` so a browser without
 container queries keeps the old behaviour instead of collapsing the stage.
+
+`?inspect` runs a **layout audit** over eight viewports from 380x820 up to
+1920x1080, checking the stage is square, the halo is round, the pointer is on
+the rim, the wheel fits and the result line is not pushed off. It squeezes the
+real app by constraining `.app` itself, because JS cannot resize the window -
+everything that matters follows from that, including the container query units
+the stage is sized from. It also covers sizes you cannot test by hand: Chrome
+refuses to make a window narrower than 500px, so 380 is only reachable this
+way. Verified both directions - clean as it stands, and red on every affected
+viewport when the container-query sizing is disabled.
 
 ## Animation has to survive a screen share
 
