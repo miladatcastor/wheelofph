@@ -488,6 +488,26 @@ body{
 .ceo[data-phase="decree"]{transform:translateX(5%)}
 .ceo[data-phase="out"]{transform:translateX(100vw)}
 
+/* Turning the head. `--turn` comes from the look, so a character with no
+   faceTurn never moves and this costs them nothing. It is a TRANSITION, not a
+   keyframe animation: he swings his head round as the state changes rather
+   than snapping, which is what makes it read as looking at something rather
+   than as a different drawing. The hair follows at 40% so the parting shifts
+   without the mop sliding off.
+
+   Same hazard as an animation: a CSS transform overwrites an SVG transform
+   attribute, so .face-turn and .hair-turn carry no attribute of their own.
+   transformAudit() checks transitions as well as animations for this. */
+.char .face-turn,
+.char .hair-turn{transform:translateX(0);transition:transform 420ms cubic-bezier(.4,0,.2,1)}
+.char[data-state="walk"]   .face-turn,
+.char[data-state="decree"] .face-turn{transform:translateX(var(--turn,0px))}
+.char[data-state="walk"]   .hair-turn,
+.char[data-state="decree"] .hair-turn{transform:translateX(calc(var(--turn,0px) * .4))}
+/* once he is side-on that temple arm points away from us */
+.char[data-state="walk"]   .shade-bar.far,
+.char[data-state="decree"] .shade-bar.far{display:none}
+
 /* walk: the legs scissor about the hip and the arms swing against them. One
    cycle is two steps, so this is 2Hz - well under the ~5Hz a shared tab can
    carry before it aliases into noise. */
@@ -542,6 +562,8 @@ body{
   .char[data-state="walk"] .body-all,
   .char[data-state="decree"] .jab-arm,
   .char[data-state="decree"] .body-all{animation:none}
+  .char .face-turn,
+  .char .hair-turn{transition:none}
 }
 
 /* ---------- ?inspect contact sheet ---------- */
@@ -615,7 +637,7 @@ body{
   var CEO_NAME = 'Derk';
   var CEO_LOOK = {
     skin:'#d7a684', hair:'#9c8464', beard:'#7e6a52', top:'#c9cac6',
-    lens:'#2e6f62', badge:CEO_NAME,
+    lens:'#2e6f62', badge:CEO_NAME, faceTurn:2.8,
     hairStyle:'tousled', beardStyle:'stubble', glasses:'shades',
     head:{ rx:11.6, ry:16.9 }
   };
@@ -742,8 +764,20 @@ body{
       + '<g class="head-shape"%HEADT%>'
       + '<g class="drawn-head">'
       + '<circle class="skin" cx="0" cy="-24" r="14"/>'
-      + '%BEARD%'
-      + '%HAIR%'
+      /* The ear belongs to the SKULL, not the face, so it stays put while the
+         face slides. Only drawn for a look that turns, and only shown in the
+         states that turn - front-on it would stick out of the silhouette. */
+      + '%EAR%'
+      /* Turning the head is done by sliding the face across the skull: the
+         standard flat-cartoon cheat, and it costs no new art. The hair goes
+         with it at a fraction of the distance, so the parting moves but the
+         mop does not slide off the head.
+         These groups must stay free of a transform ATTRIBUTE - CSS drives
+         them, and a CSS transform silently overwrites one. The bands inside
+         keep theirs; they are children, not the moving element. */
+      + '<g class="face-turn">%BEARD%</g>'
+      + '<g class="hair-turn">%HAIR%</g>'
+      + '<g class="face-turn">'
       + '%FRECKLES%'
 
       /* Feature bands. The skull stretches; these ride it so they sit at the
@@ -817,6 +851,7 @@ body{
       + '<g data-show="walk decree verdict">'
         + '<path class="mouth-f" d="M-5.2,-18.8 a5.2,5.2 0 0 0 10.4,0 z"/>'
         + '<path class="teeth" d="M-4.5,-18.5 h9 l-1,1.6 h-7 z"/>'
+      + '</g>'
       + '</g>'
       + '</g>'
       + '</g>'
@@ -976,6 +1011,11 @@ body{
      corner, so the head reads as sitting on a body rather than on a box. */
   var TOP_PATH = 'M5,-9 C8.6,-9 11.6,-7 12,-3.5 L12,5'
                + ' A12,12 0 0 1 -12,5 L-12,-3.5 C-11.6,-7 -8.6,-9 -5,-9 Z';
+
+  /* Sits on the trailing side of the skull, revealed by the turn. */
+  var EAR = '<g data-show="walk decree">'
+          + '<ellipse class="skin" cx="-11.6" cy="-23.2" rx="2.6" ry="3.4"/>'
+          + '</g>';
 
   /* Name tag. Sits on the wearer's right so it never ends up under the arm
      that does the pointing. Reached through %BADGE% like everything else
@@ -1208,7 +1248,7 @@ body{
             + '<path class="shade-glare" d="M4.7,-23 l1.7,-1.7"/>'
             + '<path class="shade-bar" d="M-0.8,-26.8 q0.8,-1.1 1.6,0"/>'
             + '<path class="shade-bar" d="M-10.4,-26.9 L-13.9,-25.3"/>'
-            + '<path class="shade-bar" d="M10.4,-26.9 L13.9,-25.3"/>'
+            + '<path class="shade-bar far" d="M10.4,-26.9 L13.9,-25.3"/>'
             + '</g>',
     /* taller lenses, centred on the eye rather than hung below it */
     'tall': '<g class="glasses">'
@@ -1264,6 +1304,7 @@ body{
         return out;
       })
       .replace('%COLLAR%',   function(){ return look.collar ? COLLAR : ''; })
+      .replace('%EAR%',      function(){ return look.faceTurn ? EAR : ''; })
       .replace('%BADGE%',    function(){
         if(!look.badge) return '';
         return BADGE.replace('%BADGENAME%', function(){ return esc(look.badge); });
@@ -1352,7 +1393,8 @@ body{
          + (look.collar ? ';--collar:'+look.collar : '')
          + (look.stripe ? ';--stripe:'+look.stripe : '')
          + (look.stripe2? ';--stripe2:'+look.stripe2 : '')
-         + (look.lens   ? ';--lens:'+look.lens : '');
+         + (look.lens   ? ';--lens:'+look.lens : '')
+         + (look.faceTurn ? ';--turn:'+look.faceTurn+'px' : '');
   }
 
   function render(){
@@ -1951,9 +1993,11 @@ body{
     return box;
   }
 
-  /* The trap that has bitten this file three times: a CSS animation silently
+  /* The trap that has bitten this file three times: a CSS transform silently
      overwrites an element's SVG transform attribute. Anything holding both is
-     a bug waiting to happen. */
+     a bug waiting to happen. A TRANSITION on transform does it just as surely
+     as a keyframe animation - this only looked for animations until the head
+     turn was added on a transition. */
   function transformAudit(){
     var hits = [];
     charEls.forEach(function(host){
@@ -1961,7 +2005,16 @@ body{
       ALL_STATES.forEach(function(st){
         host.setAttribute('data-state', st);
         host.querySelectorAll('[transform]').forEach(function(el){
-          if(getComputedStyle(el).animationName !== 'none'){
+          var cs = getComputedStyle(el);
+          /* transition-property defaults to `all`, so the property list alone
+             flags every element on the page - a transition only actually
+             overwrites the attribute if it also has a duration. */
+          var timed = cs.transitionDuration.split(',').some(function(v){
+            return parseFloat(v) > 0;
+          });
+          var moves = cs.animationName !== 'none'
+                   || (timed && /\b(transform|all)\b/.test(cs.transitionProperty));
+          if(moves){
             hits.push(st + '  ' + (el.getAttribute('class') || el.nodeName));
           }
         });
@@ -2017,7 +2070,7 @@ body{
 
     note(transformAudit(),
          'transform audit clean - no element carries both an SVG transform '
-         + 'attribute and a CSS animation.',
+         + 'attribute and a CSS transform (animation or transition).',
          'transform trap');
 
     var speech = bubbleAudit();

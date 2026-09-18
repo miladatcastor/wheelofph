@@ -191,6 +191,24 @@ Two things about him are worth not relearning:
   the current state shows and he never needs an eye pose of his own. His brows
   do need their own group though - at the shared height they weld onto the top
   of the frame and read as a thicker rim.
+- **His head turns, and the head is split into a skull and a face to do it.**
+  `.face-turn` (beard, freckles, both feature bands) slides across the skull
+  and `.hair-turn` follows at 40%, so the parting shifts without the mop
+  sliding off. The ear belongs to the skull, not the face, and only exists for
+  a look with `faceTurn` and only shows in the turned states - front-on it
+  pokes out of the silhouette. The far temple arm of the sunglasses hides when
+  he is turned, because it points away from you.
+  It is a **transition**, not a keyframe animation: he swings his head round
+  as the state changes, which is what makes it read as looking at something
+  rather than as a different drawing. Turned while he walks in and while he
+  points, front for the line - so he looks where he is going, then at the
+  person he has condemned, then at you.
+  A transition on transform overwrites an SVG transform attribute exactly as
+  an animation does, so those two groups carry no attribute of their own.
+  `transformAudit()` now checks transitions as well - and note it must test
+  the transition DURATION, not just the property list: `transition-property`
+  defaults to `all`, so checking the property alone flags every element on
+  the page. His torso is still square to the viewer; only the head turns.
 - **His walk does not read from the legs.** House proportions put stubby legs
   behind the torso, so the stride is nearly invisible; what sells it is the
   horizontal travel, the arm swing and the body bob. Same lesson as the kick
