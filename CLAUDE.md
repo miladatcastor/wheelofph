@@ -188,6 +188,13 @@ His walk-in is a CSS transition on the container and his durations are read
 back off the stylesheet (`transMs()`, and `animMs()` now takes a host so it can
 be pointed at him) - no duration is written down twice.
 
+Who he lands it on is a uniform draw over everyone, made *after* the outcome
+roll has already come up `ceo` - it decides who wears it, not whether he turns
+up, so it is not a second gate on the endings. The draw deliberately includes
+the one the wheel just landed on: one time in N there is nowhere to move the
+wheel to, and that is what triggers the lap below. There is no nominated
+favourite and no drawer control for one - that existed briefly and was wrong.
+
 He then holds the `verdict` pose - finger down, hands on hips - and says a line
 before walking off. Two things that are easy to get wrong there:
 

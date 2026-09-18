@@ -35,10 +35,12 @@ cheering — dealt so that no two of them react the same way.
 Switch the CEO on in the drawer and there is a fourth ending, as likely as a
 shove either way — not a chance layered on top of the others. That makes it
 40% take the hit, 20% each for a shove right, a shove left, and Derk. Derk walks
-in, towers over the ring, plants himself and jabs a finger at whoever you
-nominated, and the wheel goes wherever he says regardless of where it actually
-landed. Then he puts his hands on his hips, says something a CEO says, and
-strides off the side of the screen.
+in, towers over the ring, plants himself and jabs a finger at somebody picked
+at random, and the wheel goes wherever he says regardless of where it actually
+landed. Everyone is in that draw, including whoever the wheel just landed on —
+so now and then he draws them straight back, gives the wheel a full ceremonial
+lap and changes nothing. Then he puts his hands on his hips, says something a
+CEO says, and strides off the side of the screen.
 
 ## `?inspect`
 

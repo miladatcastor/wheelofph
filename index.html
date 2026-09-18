@@ -519,13 +519,7 @@ textarea{
 .opt{display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:500;
   color:var(--muted);line-height:1.45;cursor:pointer}
 .opt input{margin:2px 0 0;accent-color:var(--accent);flex:none;cursor:pointer}
-.ceopick{display:flex;flex-direction:column;gap:5px}
-.ceopick label{font-size:12px;color:var(--muted);font-weight:600}
-.ceopick select{
-  font:inherit;font-size:13px;padding:8px 10px;border-radius:10px;
-  border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;
-}
-.ceopick[hidden]{display:none}
+
 
 /* ---------- the CEO ----------
    He is not on the wheel and is not in `characters`; he is an overlay that
@@ -682,14 +676,10 @@ textarea{
       <label class="opt" for="ceoOn">
         <input type="checkbox" id="ceoOn" checked>
         <span>The CEO &mdash; a fourth ending, as likely as a shove either
-        way. He walks in, overrules the wheel and hands it to whoever he
-        likes. Taking the hit stays twice as likely as any one of the
-        three.</span>
+        way. He walks in, overrules the wheel and hands it to somebody else
+        entirely, picked at random. Taking the hit stays twice as likely as
+        any one of the three.</span>
       </label>
-      <div class="ceopick">
-        <label for="ceoPick">&hellip;and who he always hands it to</label>
-        <select id="ceoPick"></select>
-      </div>
       <input type="file" id="file" accept="image/*" hidden>
   </aside>
 </main>
@@ -707,7 +697,6 @@ textarea{
   var facesEl  = document.getElementById('faces');
   var ceoEl    = document.getElementById('ceo');
   var ceoOnEl  = document.getElementById('ceoOn');
-  var ceoPickEl= document.getElementById('ceoPick');
   var fileEl   = document.getElementById('file');
 
   var pendingFace = -1;
@@ -1656,12 +1645,14 @@ textarea{
     ceoEl.hidden = true;
   }
 
+  /* Who he lands it on. This is NOT the outcome roll - that already happened
+     and came up 'ceo'; this only decides who wears it, so it is not a second
+     gate on the endings.
+     Everyone is in the hat, the one the wheel actually landed on included.
+     That is deliberate: one time in N he draws them again, there is nowhere
+     to move the wheel to, and he gives it the full lap that changes nothing. */
   function ceoTargetIndex(){
-    var want = ceoPickEl.value;
-    for(var i=0;i<characters.length;i++){
-      if(characters[i].name === want) return i;
-    }
-    return 0;
+    return Math.floor(Math.random() * characters.length);
   }
 
   /* He walks in, plants himself and jabs a finger at whoever he has decided
@@ -1982,17 +1973,6 @@ textarea{
   });
 
   /* ---------- photos ---------- */
-  function renderCeoPick(){
-    var want = ceoPickEl.value;
-    ceoPickEl.innerHTML = characters.map(function(c){
-      return '<option>' + esc(c.name) + '</option>';
-    }).join('');
-    /* hold the choice across an edit that leaves that name standing */
-    for(var i=0;i<characters.length;i++){
-      if(characters[i].name === want){ ceoPickEl.value = want; break; }
-    }
-  }
-
   function renderFaces(){
     facesEl.innerHTML = characters.map(function(c,i){
       var av = c.headImage
@@ -2006,8 +1986,6 @@ textarea{
                : '')
            + '</span>';
     }).join('');
-    /* the drawer's two name-driven lists stay in step from one place */
-    renderCeoPick();
   }
 
   function setHeadImage(index, url){
