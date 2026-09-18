@@ -10,10 +10,11 @@ link above, or `index.html` in a browser.
 
 - **Spin** — the hub in the middle of the wheel.
 - **Click a character** — make them the one who jumps to start the next spin,
-  or remove them from the wheel.
-- **Names** — the pill in the top corner opens a drawer to edit the list and
-  give anyone a photo head. There is nothing else in there; every ending is
-  always in play.
+  or drop them from this session. A reload brings everyone back.
+The names are the five in `DEFAULT_NAMES`. There is no settings drawer, no
+name editor, no photo upload and no switches — the page is the wheel and
+nothing else. Changing who is on it means editing that array and the matching
+`SEED_LOOKS` entry.
 
 The opening arrangement is shuffled on every load.
 

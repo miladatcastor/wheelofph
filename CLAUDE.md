@@ -144,12 +144,22 @@ no-repeat rule. All three existed once and made the behaviour impossible to
 reason about or to see. If you ever find yourself writing a second
 `Math.random()` above the pick, stop and change the shape of the list instead.
 
-**There are no switches.** The drawer holds names and faces and nothing else.
-Tick boxes for "sore losers" and "the CEO" both existed and were removed: an
-option is another thing to reason about and another state to test, and every
-ending being always in play is the whole point. `shouldShove()` is now only
-"are there at least two names". Resist adding a toggle back for the same
-reason you resist adding a probability gate.
+**There are no switches, and there is no UI.** The page is the wheel, the hub
+and the result line. A settings drawer existed and held a names textarea, a
+face/photo uploader and tick boxes for "sore losers" and "the CEO"; all of it
+is gone, along with `parseNames`, `renderFaces`, `setHeadImage`,
+`squareDataURL`, the whole `headImage` photo-head path and the `MAX` cap that
+only ever limited the textarea. Every option was another thing to reason about
+and another state to test, and one of them - "sore losers" off - made the
+wheel land on a name and then do nothing at all. `shouldShove()` is now only
+"are there at least two names".
+
+Names live in `DEFAULT_NAMES`, looks in `SEED_LOOKS`, and that is the only way
+to change who is on the wheel. The one surviving control is the per-character
+menu (click a slice): make them the jumper, or drop them for this session -
+which is recoverable by reloading, now that there is no textarea to restore
+them from. Resist adding a toggle back for the same reason you resist adding a
+probability gate.
 
 ## The CEO
 

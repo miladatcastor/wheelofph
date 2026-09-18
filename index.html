@@ -84,9 +84,6 @@ body{
 /* The wheel takes whatever the viewport will give it: the app is a full-height
    column, and the stage is the leftover square in the middle of it. */
 .app{height:100dvh;display:flex;flex-direction:column;padding:10px 12px}
-.masthead{flex:none}
-h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
-.sub{margin:0;color:var(--muted);font-size:12.5px;line-height:1.4}
 
 .layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
 .col{display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -206,9 +203,6 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char .hand{fill:var(--skin);stroke:var(--stroke);stroke-width:1.7}
 .char .hand{fill:color-mix(in srgb, var(--skin) 84%, white)}
 .char .drop{fill:var(--sweat);stroke:var(--stroke);stroke-width:1}
-.char .photo-ring{fill:none;stroke:var(--stroke);stroke-width:1.8}
-/* a light backing so the X eyes read against any photo */
-.char .xeye-halo{fill:none;stroke:#fff;stroke-width:4.6;stroke-linecap:round;opacity:.92}
 .char .spark{fill:none;stroke:#ffd34d;stroke-width:2;stroke-linecap:round}
 .char .anger{fill:none;stroke:#d8503f;stroke-width:1.7;stroke-linecap:round}
 .char{--dir:1}
@@ -217,8 +211,6 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
 .char .ring{fill:none;stroke:rgba(255,255,255,.9);stroke-width:2.4}
 .char .puff{fill:none;stroke:rgba(255,255,255,.85);stroke-width:2.4;stroke-linecap:round}
 .char .thud{opacity:0}
-/* a photo head replaces the drawn one; overlays stay on top */
-.char.has-photo .drawn-head{display:none !important}
 
 /* pose visibility: one block per state, driven by data-show */
 .char [data-show]{display:none}
@@ -456,65 +448,12 @@ h1{font-size:clamp(18px,2vw,24px);margin:0 0 2px;letter-spacing:-.02em}
   flex:none;margin:0;text-align:center;
   font-size:clamp(16px,2.2vw,22px);font-weight:650;min-height:1.5em;
 }
-/* The controls are a drawer now, so the wheel owns the screen. */
-.cog{
-  position:fixed;top:10px;right:12px;z-index:30;
-  font:inherit;font-size:12px;font-weight:650;letter-spacing:.02em;
-  color:var(--muted);background:var(--panel);
-  border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;
-  box-shadow:0 1px 6px rgba(0,0,0,.06);
-}
-.cog:hover{color:var(--ink);border-color:var(--accent)}
-.panel{
-  position:fixed;top:0;right:0;z-index:20;
-  width:min(92vw,320px);height:100dvh;
-  background:var(--panel);border-left:1px solid var(--line);
-  padding:52px 16px 20px;display:flex;flex-direction:column;gap:12px;
-  box-shadow:-6px 0 24px rgba(0,0,0,.12);
-  overflow:auto;
-}
-/* a class selector outranks the UA's [hidden]{display:none}, so say it again */
-.panel[hidden]{display:none}
 
-/* Below the two-column breakpoint the wheel is limited by width rather than by
-   height. The controls stay reachable without scrolling either way - the drawer
-   is position:fixed with its own overflow. */
+/* Below the breakpoint the wheel is limited by width rather than by height. */
 @media (max-width:819px){
   .app{height:100dvh}
   .stage{max-width:100%}
 }
-.btn{
-  font:inherit;font-weight:700;color:#fff;background:var(--accent);
-  border:none;border-radius:10px;padding:13px 18px;cursor:pointer;
-  letter-spacing:.02em;
-}
-.btn:hover:not(:disabled){filter:brightness(1.07)}
-.btn:active:not(:disabled){transform:translateY(1px)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-label{font-size:13px;font-weight:650;color:var(--muted)}
-textarea{
-  font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  color:var(--ink);background:var(--bg);
-  border:1px solid var(--line);border-radius:10px;padding:10px;
-  width:100%;min-height:180px;resize:vertical;
-}
-.hint{margin:0;font-size:12px;color:var(--muted)}
-
-/* face chips */
-.faces{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.face{display:inline-flex;align-items:center;background:var(--bg);
-  border:1px solid var(--line);border-radius:999px;overflow:hidden}
-.face.set{border-color:var(--accent)}
-.face button{font:inherit;font-size:12px;font-weight:650;color:var(--ink);
-  background:none;border:none;cursor:pointer;padding:0}
-.face-btn{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px}
-.face-btn:hover{color:var(--accent)}
-.av{width:22px;height:22px;border-radius:50%;flex:none;overflow:hidden;
-  background:hsl(var(--hue,0) var(--slice-s) var(--slice-l));
-  display:grid;place-items:center;font-size:11px;color:var(--slice-ink)}
-.av img{width:100%;height:100%;object-fit:cover;display:block}
-.face-x{padding:3px 9px 3px 7px;margin-left:-2px;color:var(--muted);line-height:1;font-size:15px}
-.face-x:hover{color:var(--accent)}
 
 
 
@@ -642,30 +581,12 @@ textarea{
 
   </div>
 
-  <button class="cog" id="cog" type="button" aria-expanded="false" aria-controls="panel">Names</button>
-
   <div class="menu" id="menu" role="menu" hidden>
     <p class="menu-who" id="menuWho"></p>
     <button type="button" data-act="jump" role="menuitem">Make them the jumper</button>
     <button type="button" data-act="remove" role="menuitem">Remove from the wheel</button>
   </div>
 
-  <aside class="panel" id="panel" hidden>
-      <header class="masthead">
-        <h1>Name Wheel</h1>
-        <p class="sub">Spin it. Somebody is going to have a bad time.</p>
-      </header>
-      <div>
-        <label for="names">Names — one per line</label>
-        <textarea id="names" spellcheck="false" aria-describedby="hint"></textarea>
-      </div>
-      <p class="hint" id="hint">The wheel rebuilds as you type. 2&ndash;24 names work best.</p>
-      <div>
-        <label id="faceslabel">Faces &mdash; tap a name to use a photo</label>
-        <div class="faces" id="faces" role="group" aria-labelledby="faceslabel"></div>
-      </div>
-      <input type="file" id="file" accept="image/*" hidden>
-  </aside>
 </main>
 
 <script>
@@ -675,15 +596,12 @@ textarea{
   var svg      = document.getElementById('svg');
   var wheel    = document.getElementById('wheel');
   var spinBtn  = document.getElementById('spin');
-  var namesEl  = document.getElementById('names');
   var resultEl = document.getElementById('result');
-  var facesEl  = document.getElementById('faces');
   var ceoEl    = document.getElementById('ceo');
-  var fileEl   = document.getElementById('file');
 
   var pendingFace = -1;
 
-  var CX = 200, CY = 200, R = 186, MAX = 24;
+  var CX = 200, CY = 200, R = 186;
   var DEFAULT_NAMES = ['Milad','Andrea','Eugenia','Rafal','Andre'];
 
   /* SEAM: per-character appearance, separate from state. A look sets colours
@@ -719,7 +637,7 @@ textarea{
 
   /* ------------------------------------------------------------------
      SEAM 1: `characters` is the only source of truth.
-     Every entry: { name, state, hue, headImage }
+     Every entry: { name, state, hue, look }
      Rendering reads from it; nothing else stores character state.
   ------------------------------------------------------------------ */
   var characters = [];
@@ -903,8 +821,6 @@ textarea{
       + '</g>'
       + '</g>'
 
-      /* a photo head, when the character has one, lands here */
-      + '%PHOTO%'
 
       /* overlays: these read on a drawn head AND on a photo head */
       + '<g%BANDE%>'
@@ -1304,7 +1220,6 @@ textarea{
           + '</g>'
   };
 
-  /* A photo head, when the character has one. Falls back to the drawn head. */
   /* Head geometry. The rig is drawn against a circle of r=14 centred at
      (0,-24) with the chin at y=-10; a look's head {rx,ry} restates that as an
      ellipse, scaled about the chin so the neck joint never moves. */
@@ -1326,22 +1241,7 @@ textarea{
   function charMarkup(i, c){
     var look = c.look || {};
     var T = headTransforms(look);
-    var photo = '';
-    if(c.headImage){
-      var id = 'headclip' + i;
-      photo = '<g class="photo-head">'
-            + '<clipPath id="' + id + '"><circle cx="0" cy="-24" r="14"/></clipPath>'
-            + '<image href="' + c.headImage + '" x="-14.5" y="-39" width="29" height="29"'
-            + ' preserveAspectRatio="xMidYMid slice" clip-path="url(#' + id + ')"/>'
-            + '<circle class="photo-ring" cx="0" cy="-24" r="14"/>'
-            + '<g data-show="doomed">'
-              + '<path class="xeye-halo" d="M-8.2,-28 l5.6,5.6 M-2.6,-28 l-5.6,5.6"/>'
-              + '<path class="xeye-halo" d="M2.6,-28 l5.6,5.6 M8.2,-28 l-5.6,5.6"/>'
-            + '</g>'
-            + '</g>';
-    }
     return CHAR_MARKUP
-      .replace('%PHOTO%',   function(){ return photo; })
       .replace('%BEARD%',   function(){
         return look.beard ? (BEARD[look.beardStyle] || BEARD['trim']) : '';
       })
@@ -1385,13 +1285,6 @@ textarea{
     return a;
   }
 
-  function parseNames(text){
-    return text.split('\n')
-      .map(function(s){ return s.trim(); })
-      .filter(function(s){ return s.length; })
-      .slice(0, MAX);
-  }
-
   function buildCharacters(names){
     var prev = {};
     characters.forEach(function(c){ prev[c.name] = c; });
@@ -1402,7 +1295,6 @@ textarea{
         name: name,
         state: 'idle',
         hue: Math.round((i*360/n + 14) % 360),
-        headImage: old ? old.headImage : null,
         look: old ? old.look : (SEED_LOOKS[name] || null)
       };
     });
@@ -1508,7 +1400,7 @@ textarea{
       var look = c.look || {};
       var vars = '--hue:'+c.hue+';--d:'+(i*0.37).toFixed(2)+'s'
                + ';--pull:'+pull.toFixed(1) + lookVars(look);
-      out += '<g data-i="'+i+'" class="char'+(c.headImage ? ' has-photo' : '')
+      out += '<g data-i="'+i+'" class="char'
            + (look.beard ? ' bearded' : '')+(look.lip ? ' lips' : '')+'"'
            + ' data-state="'+c.state+'"'
            + ' style="'+vars+'"'
@@ -1950,70 +1842,6 @@ textarea{
     if(e.target === wheel && e.propertyName === 'transform') stop();
   });
 
-  /* ---------- photos ---------- */
-  function renderFaces(){
-    facesEl.innerHTML = characters.map(function(c,i){
-      var av = c.headImage
-        ? '<span class="av"><img src="'+c.headImage+'" alt=""></span>'
-        : '<span class="av" style="--hue:'+c.hue+'">'+esc(c.name.charAt(0).toUpperCase())+'</span>';
-      return '<span class="face'+(c.headImage ? ' set' : '')+'">'
-           + '<button class="face-btn" type="button" data-i="'+i+'">'+av+esc(trunc(c.name))+'</button>'
-           + (c.headImage
-               ? '<button class="face-x" type="button" data-clear="'+i+'"'
-                 + ' aria-label="Remove the photo for '+esc(c.name)+'">&times;</button>'
-               : '')
-           + '</span>';
-    }).join('');
-  }
-
-  function setHeadImage(index, url){
-    if(!characters[index]) return;
-    characters[index].headImage = url;
-    render();
-    renderFaces();
-  }
-
-  /* centre-crop to a square and shrink, so a 4MB phone photo stays cheap */
-  function squareDataURL(file, size, done){
-    var reader = new FileReader();
-    reader.onload = function(){
-      var img = new Image();
-      img.onload = function(){
-        /* Bias the crop up and in: in most snapshots the face sits above centre,
-           so a plain centre crop leaves the head tiny inside the slice. */
-        var side = Math.min(img.width, img.height) * 0.62;
-        var sx = (img.width - side)/2;
-        var sy = Math.max(0, Math.min(img.height - side, img.height*0.40 - side/2));
-        var cv = document.createElement('canvas');
-        cv.width = cv.height = size;
-        cv.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
-        done(cv.toDataURL('image/jpeg', 0.82));
-      };
-      img.onerror = function(){ resultEl.textContent = 'That file would not load as an image.'; };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  facesEl.addEventListener('click', function(e){
-    var b = e.target.closest('button');
-    if(!b) return;
-    if(b.dataset.clear !== undefined){
-      setHeadImage(+b.dataset.clear, null);
-    }else if(b.dataset.i !== undefined){
-      pendingFace = +b.dataset.i;
-      fileEl.value = '';
-      fileEl.click();
-    }
-  });
-
-  fileEl.addEventListener('change', function(){
-    var file = fileEl.files && fileEl.files[0];
-    if(!file || pendingFace < 0) return;
-    var i = pendingFace;
-    pendingFace = -1;
-    squareDataURL(file, 256, function(url){ setHeadImage(i, url); });
-  });
 
   /* ---------- per-character menu ---------- */
   var menuEl = document.getElementById('menu');
@@ -2058,12 +1886,10 @@ textarea{
     }else if(b.dataset.act === 'remove'){
       if(characters.length < 2) return;
       if(c.name === chosenJumper) chosenJumper = null;
-      var names = parseNames(namesEl.value);
+      var names = characters.map(function(x){ return x.name; });
       names.splice(menuFor, 1);
-      namesEl.value = names.join('\n');
       buildCharacters(names);
       render();
-      renderFaces();
       resultEl.textContent = c.name + ' is out. ' + names.length + ' left.';
     }
     closeMenu();
@@ -2079,26 +1905,10 @@ textarea{
   /* ---------- wiring ---------- */
   spinBtn.addEventListener('click', spin);
 
-  var cogEl = document.getElementById('cog');
-  var panelEl = document.getElementById('panel');
-  cogEl.addEventListener('click', function(){
-    var open = panelEl.hidden;
-    panelEl.hidden = !open;
-    cogEl.setAttribute('aria-expanded', String(open));
-    cogEl.textContent = open ? 'Close' : 'Names';
-  });
   document.addEventListener('keydown', function(e){
-    if(e.key !== 'Escape') return;
-    if(!menuEl.hidden) closeMenu();
-    else if(!panelEl.hidden) cogEl.click();
+    if(e.key === 'Escape' && !menuEl.hidden) closeMenu();
   });
 
-  namesEl.addEventListener('input', function(){
-    buildCharacters(parseNames(namesEl.value));
-    render();
-    renderFaces();
-    if(!spinning){ resultEl.textContent = 'Ready when you are.'; restPose(); }
-  });
 
   var opening = shuffled(DEFAULT_NAMES);
   var ALL_STATES = ['idle','nervous','panic','doomed','relieved',
@@ -2256,10 +2066,8 @@ textarea{
 
   if(/\binspect\b/.test(location.search)) setTimeout(inspect, 0);
 
-  namesEl.value = opening.join('\n');
   buildCharacters(opening);
   render();
-  renderFaces();
   buildCeo();      /* before syncTimings: his durations are read off him */
   syncTimings();
   restPose();
