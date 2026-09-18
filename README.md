@@ -11,8 +11,9 @@ link above, or `index.html` in a browser.
 - **Spin** — the hub in the middle of the wheel.
 - **Click a character** — make them the one who jumps to start the next spin,
   or remove them from the wheel.
-- **Names** — the pill in the top corner opens a drawer to edit the list, give
-  anyone a photo head, or turn the "sore losers" gag off.
+- **Names** — the pill in the top corner opens a drawer to edit the list and
+  give anyone a photo head. There is nothing else in there; every ending is
+  always in play.
 
 The opening arrangement is shuffled on every load.
 
@@ -32,9 +33,9 @@ hit is twice as likely as either shove. Whoever shoves it away points at the per
 Everyone who escapes gets one of four reactions — relieved, gloating, smug or
 cheering — dealt so that no two of them react the same way.
 
-Switch the CEO on in the drawer and there is a fourth ending, as likely as a
-shove either way — not a chance layered on top of the others. That makes it
-40% take the hit, 20% each for a shove right, a shove left, and Derk. Derk walks
+There is a fourth ending too, as likely as a shove either way — not a chance
+layered on top of the others. That makes it 40% take the hit, 20% each for a
+shove right, a shove left, and Derk. Derk walks
 in, towers over the ring, plants himself and jabs a finger at somebody picked
 at random, and the wheel goes wherever he says regardless of where it actually
 landed. Everyone is in that draw, including whoever the wheel just landed on —

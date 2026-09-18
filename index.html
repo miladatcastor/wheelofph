@@ -516,9 +516,6 @@ textarea{
 .face-x{padding:3px 9px 3px 7px;margin-left:-2px;color:var(--muted);line-height:1;font-size:15px}
 .face-x:hover{color:var(--accent)}
 
-.opt{display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:500;
-  color:var(--muted);line-height:1.45;cursor:pointer}
-.opt input{margin:2px 0 0;accent-color:var(--accent);flex:none;cursor:pointer}
 
 
 /* ---------- the CEO ----------
@@ -667,19 +664,6 @@ textarea{
         <label id="faceslabel">Faces &mdash; tap a name to use a photo</label>
         <div class="faces" id="faces" role="group" aria-labelledby="faceslabel"></div>
       </div>
-      <label class="opt" for="sore">
-        <input type="checkbox" id="sore" checked>
-        <span>Sore losers &mdash; whoever gets picked squares up and either
-        shoves the wheel a notch left or right, landing a neighbour in it, or
-        thinks better of it and takes the hit.</span>
-      </label>
-      <label class="opt" for="ceoOn">
-        <input type="checkbox" id="ceoOn" checked>
-        <span>The CEO &mdash; a fourth ending, as likely as a shove either
-        way. He walks in, overrules the wheel and hands it to somebody else
-        entirely, picked at random. Taking the hit stays twice as likely as
-        any one of the three.</span>
-      </label>
       <input type="file" id="file" accept="image/*" hidden>
   </aside>
 </main>
@@ -693,10 +677,8 @@ textarea{
   var spinBtn  = document.getElementById('spin');
   var namesEl  = document.getElementById('names');
   var resultEl = document.getElementById('result');
-  var soreEl   = document.getElementById('sore');
   var facesEl  = document.getElementById('faces');
   var ceoEl    = document.getElementById('ceo');
-  var ceoOnEl  = document.getElementById('ceoOn');
   var fileEl   = document.getElementById('file');
 
   var pendingFace = -1;
@@ -1582,24 +1564,21 @@ textarea{
      A third of the time they cave, so the result only actually moves on about
      two thirds of these. */
   /* Every landing ends one of these three ways, evenly. */
-  /* Every landing ends one of these. ONE flat pick from ONE list, and the
-     weighting is the list itself: taking the hit is twice as likely as any
-     single other ending, because 'accept' appears twice. Shoving right,
-     shoving left and the CEO are all equally likely.
+  /* Every landing ends one of these, always. ONE flat pick from ONE list,
+     and the weighting is the list itself: taking the hit is twice as likely
+     as any single other ending, because 'accept' appears twice.
 
          accept 2/5 = 40%    right 1/5    left 1/5    ceo 1/5
-         with the CEO off:   accept 1/2   right 1/4   left 1/4
 
      Repeating an entry is not a layer - it is still one roll you can read in
-     one line. What IS a layer is a second roll in front of this one
-     ("sometimes the CEO turns up, otherwise the usual three"), which is what
-     made this impossible to reason about last time, and is not coming back.
-     If you ever find yourself writing a second Math.random() above the pick,
-     stop and change the shape of this list instead. */
-  var SHOVE_OPTIONS = ['right', 'left', 'accept', 'accept'];
-  function outcomes(){
-    return ceoOnEl.checked ? SHOVE_OPTIONS.concat('ceo') : SHOVE_OPTIONS;
-  }
+     one line, and changing the balance means changing this line. What IS a
+     layer is a second roll in front of it, a probability gate, or a no-repeat
+     rule; all three existed once and made the behaviour impossible to reason
+     about. If you ever find yourself writing a second Math.random() above the
+     pick, stop and change the shape of this list instead.
+
+     There is no switch for any of it. Every ending is always in play. */
+  var OUTCOMES = ['right', 'left', 'accept', 'accept', 'ceo'];
 
   var CEO_WALK, CEO_DECREE, ceoTimer, ceoCharEl = null;
   var CEO_TURN = 620;   /* the wheel swinging round to the slice he picked */
@@ -1884,7 +1863,7 @@ textarea{
   }
 
   function shouldShove(){
-    return soreEl.checked && characters.length >= 2;
+    return characters.length >= 2;
   }
 
   /* The gag: the picked one shoves the wheel on one notch, so the neighbour
@@ -1893,8 +1872,7 @@ textarea{
   function shove(p){
     var n = characters.length;
     var name = characters[p].name;
-    var opts = outcomes();
-    var pick = opts[Math.floor(Math.random() * opts.length)];
+    var pick = OUTCOMES[Math.floor(Math.random() * OUTCOMES.length)];
 
     if(pick === 'ceo'){ ceoIntervene(p); return; }
 

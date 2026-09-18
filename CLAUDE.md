@@ -127,27 +127,29 @@ Everyone else who escapes gets one of four reactions - relieved, gloat, smug, ch
 dealt from a shuffled deck, so with four or fewer survivors no two react the
 same way. Drawing independently gave three the same pose about half the time.
 
-Every landing ends one of exactly three ways - push right, push left, or cave
-- and four when the CEO is switched on. Caving is deliberately twice as likely
-as any single one of the others; the three that pass it on or bring Derk in are
-equally likely to each other.
+Every landing ends one of exactly four ways: push right, push left, cave, or
+the CEO. Caving is deliberately twice as likely as any single one of the
+others; the three that pass it on or bring Derk in are equally likely to each
+other.
 
     accept 2/5 = 40%    right 1/5    left 1/5    ceo 1/5
-    CEO off:            accept 1/2   right 1/4   left 1/4
 
-**The weighting is the shape of the list, nothing else.** `SHOVE_OPTIONS`
-holds `accept` twice and `outcomes()` appends `ceo`; one flat pick is taken
-from the result. Repeating an entry is not a layer - it is still one roll you
-can read in one line, and changing the balance means changing the list.
+**The weighting is the shape of the list, nothing else** - `OUTCOMES` holds
+`accept` twice, and one flat pick is taken from it. Repeating an entry is not a
+layer: it is still one roll you can read in one line, and changing the balance
+means changing that line.
 
-What IS a layer is a second roll in front of that one: "sometimes the CEO turns
-up, otherwise the usual three", or a probability gate, or a no-repeat rule. All
-three existed once and made the behaviour impossible to reason about or to see.
-If you ever find yourself writing a second `Math.random()` above the pick, stop
-and change the shape of the list instead.
+What IS a layer is a second roll in front of it, a probability gate, or a
+no-repeat rule. All three existed once and made the behaviour impossible to
+reason about or to see. If you ever find yourself writing a second
+`Math.random()` above the pick, stop and change the shape of the list instead.
 
-Note the odds are stated in three places - that comment, the CEO tick box in
-the drawer, and the README. Change the list and they all have to move.
+**There are no switches.** The drawer holds names and faces and nothing else.
+Tick boxes for "sore losers" and "the CEO" both existed and were removed: an
+option is another thing to reason about and another state to test, and every
+ending being always in play is the whole point. `shouldShove()` is now only
+"are there at least two names". Resist adding a toggle back for the same
+reason you resist adding a probability gate.
 
 ## The CEO
 
