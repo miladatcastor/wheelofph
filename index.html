@@ -591,6 +591,31 @@ body{
   background:#e3f0e3;color:#1f5c2e;border:1px solid #b9d9bd}
 .ins-audit.bad{background:#fbe4e2;color:#8c231a;border-color:#eab4ae}
 
+/* ---------- ?design - dial a character in against the photo ---------- */
+.dz{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.dz-panel{display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;
+  min-width:290px;max-width:330px}
+.dz-panel label{font-size:11px;font-weight:650;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.03em}
+.dz-panel input[type=color]{width:46px;height:24px;padding:0;border:1px solid var(--line);
+  border-radius:5px;background:none}
+.dz-panel input[type=range]{width:100%}
+.dz-panel select,.dz-panel input[type=text]{font:inherit;font-size:12px;padding:4px 6px;
+  border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.dz-full{grid-column:1 / -1}
+.dz-hint{font-size:11px;color:var(--muted)}
+.dz-stage{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.dz-shot{background:#e8a98f;border-radius:8px;overflow:hidden}
+.dz-shot svg{display:block;width:100%}
+.dz-cap{font-size:10px;font-weight:650;color:var(--muted);margin:3px 0 0}
+.dz-drop{width:260px;min-height:150px;border:2px dashed var(--line);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:11px;color:var(--muted);padding:8px;overflow:hidden}
+.dz-drop img{max-width:100%;max-height:340px;display:block;border-radius:6px}
+.dz-out{width:100%;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  white-space:pre;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px;overflow:auto;color:var(--ink)}
+
 :where(button,textarea,input,a,[tabindex]):focus-visible{
   outline:3px solid var(--focus);outline-offset:2px;border-radius:10px;
 }
@@ -2494,7 +2519,266 @@ body{
     document.title = 'Name Wheel - inspect';
   }
 
-  if(/\binspect\b/.test(location.search)) setTimeout(inspect, 0);
+  /* ------------------------------------------------------------------
+     ?design - dial a new character in instead of guessing at numbers.
+
+     Every look is eight colours, three picks from the part tables and two
+     head measurements. That is a tiny space, and the slow part was never
+     expressing it - it was setting the numbers off a photo and only finding
+     out at true size that the hair read as horns or the head came out 0.80
+     wide when it wanted 0.69. This closes that loop: drop the photo next to
+     it, drag, and copy the SEED_LOOKS entry out.
+  ------------------------------------------------------------------ */
+  function design(){
+    var look = JSON.parse(JSON.stringify(SEED_LOOKS[DEFAULT_NAMES[0]]));
+    var who = DEFAULT_NAMES[0], pose = 'idle', lockArea = true;
+
+    var page = document.createElement('div');
+    page.className = 'inspect';
+    var wrap = document.createElement('div');
+    wrap.className = 'dz';
+    var panel = document.createElement('div');
+    panel.className = 'dz-panel';
+    var right = document.createElement('div');
+    var stage = document.createElement('div');
+    stage.className = 'dz-stage';
+    var drop = document.createElement('div');
+    drop.className = 'dz-drop';
+    drop.textContent = 'drop their photo here to compare';
+    var out = document.createElement('pre');
+    out.className = 'dz-out';
+
+    function field(name, el){
+      var l = document.createElement('label');
+      l.textContent = name;
+      panel.appendChild(l); panel.appendChild(el);
+      return el;
+    }
+    function on(el, ev){ el.addEventListener(ev, draw); return el; }
+
+    function colour(name, key, fallback){
+      var box = document.createElement('div');
+      box.style.cssText = 'display:flex;gap:6px;align-items:center';
+      var use = document.createElement('input');
+      use.type = 'checkbox'; use.checked = look[key] != null;
+      var c = document.createElement('input');
+      c.type = 'color'; c.value = look[key] || fallback;
+      function sync(){
+        if(use.checked) look[key] = c.value; else delete look[key];
+        draw();
+      }
+      use.addEventListener('change', sync); c.addEventListener('input', sync);
+      box.appendChild(use); box.appendChild(c);
+      field(name, box);
+    }
+    function plainColour(name, key){
+      var c = document.createElement('input');
+      c.type = 'color'; c.value = look[key] || '#cccccc';
+      c.addEventListener('input', function(){ look[key] = c.value; draw(); });
+      field(name, c);
+    }
+    function choice(name, key, table, noneLabel){
+      var sel = document.createElement('select');
+      if(noneLabel) sel.appendChild(new Option(noneLabel, ''));
+      Object.keys(table).forEach(function(k){ sel.appendChild(new Option(k, k)); });
+      sel.value = look[key] || '';
+      sel.addEventListener('change', function(){
+        if(sel.value) look[key] = sel.value; else delete look[key];
+        draw();
+      });
+      field(name, sel);
+    }
+
+    /* start from someone who already exists */
+    var nameIn = document.createElement('input');
+    nameIn.type = 'text'; nameIn.value = who; nameIn.placeholder = 'their name';
+    nameIn.addEventListener('input', function(){ who = nameIn.value || 'Someone'; draw(); });
+
+    var from = document.createElement('select');
+    DEFAULT_NAMES.forEach(function(n){ from.appendChild(new Option(n, n)); });
+    from.appendChild(new Option(CEO_NAME + ' (overlay)', '__ceo'));
+    from.addEventListener('change', function(){
+      who = from.value;
+      look = JSON.parse(JSON.stringify(who === '__ceo' ? CEO_LOOK : SEED_LOOKS[who]));
+      if(who === '__ceo') who = CEO_NAME;
+      nameIn.value = who;
+      rebuild();
+    });
+    field('start from', from);
+
+    var poseSel = document.createElement('select');
+    ALL_STATES.forEach(function(st){ poseSel.appendChild(new Option(st, st)); });
+    poseSel.value = pose;
+    poseSel.addEventListener('change', function(){ pose = poseSel.value; draw(); });
+    field('pose', poseSel);
+
+    var rx, ry, headOut, lock;
+    function heads(){
+      rx = document.createElement('input');
+      rx.type = 'range'; rx.min = '9'; rx.max = '15'; rx.step = '0.1';
+      rx.value = look.head ? look.head.rx : 12;
+      ry = document.createElement('input');
+      ry.type = 'range'; ry.min = '13'; ry.max = '20'; ry.step = '0.1';
+      ry.value = look.head ? look.head.ry : 16;
+      lock = document.createElement('input');
+      lock.type = 'checkbox'; lock.checked = lockArea;
+      headOut = document.createElement('div');
+      headOut.className = 'dz-hint dz-full';
+
+      rx.addEventListener('input', function(){
+        look.head = look.head || {};
+        look.head.rx = +rx.value;
+        /* every existing look keeps rx*ry at the base circle's area, which is
+           what stops a new face coming out bigger than everyone else's */
+        if(lock.checked){ ry.value = (196 / (+rx.value)).toFixed(1); look.head.ry = +ry.value; }
+        draw();
+      });
+      ry.addEventListener('input', function(){
+        look.head = look.head || {};
+        look.head.ry = +ry.value;
+        if(lock.checked){ rx.value = (196 / (+ry.value)).toFixed(1); look.head.rx = +rx.value; }
+        draw();
+      });
+      lock.addEventListener('change', function(){ lockArea = lock.checked; });
+      field('head width', rx);
+      field('head height', ry);
+      field('hold area', lock);
+      panel.appendChild(headOut);
+    }
+
+    function rebuild(){
+      panel.innerHTML = '';
+      field('start from', from);
+      field('name', nameIn);
+      field('pose', poseSel);
+      plainColour('skin', 'skin');
+      plainColour('hair', 'hair');
+      plainColour('top', 'top');
+      colour('beard', 'beard', '#5a4636');
+      colour('collar', 'collar', '#1f2a4d');
+      colour('lip', 'lip', '#9c4f5c');
+      colour('stripe', 'stripe', '#dddddd');
+      colour('stripe 2', 'stripe2', '#b5635e');
+      colour('lens', 'lens', '#2e6f62');
+      choice('hair style', 'hairStyle', HAIR, '');
+      /* leaving beardStyle out does not mean no beard - charMarkup falls back
+         to 'trim' whenever a beard colour is set, so say so */
+      choice('beard style', 'beardStyle', BEARD, '(default: trim)');
+      choice('glasses', 'glasses', GLASSES, '(none)');
+      var fr = document.createElement('input');
+      fr.type = 'checkbox'; fr.checked = !!look.freckles;
+      fr.addEventListener('change', function(){
+        if(fr.checked) look.freckles = true; else delete look.freckles;
+        draw();
+      });
+      field('freckles', fr);
+      var badge = document.createElement('input');
+      badge.type = 'text'; badge.value = look.badge || ''; badge.placeholder = 'name tag';
+      badge.addEventListener('input', function(){
+        if(badge.value) look.badge = badge.value; else delete look.badge;
+        draw();
+      });
+      field('badge', badge);
+      heads();
+      draw();
+    }
+
+    /* one character, built from the look in hand rather than cloned off the
+       wheel, so nothing has to exist before it can be drawn */
+    function shot(px, label){
+      var box = document.createElement('div');
+      var cls = 'char' + (look.beard ? ' bearded' : '') + (look.lip ? ' lips' : '');
+      var art = document.createElement('div');
+      art.className = 'dz-shot';
+      art.style.width = px + 'px';
+      art.innerHTML = '<svg viewBox="-54 -66 108 104">'
+        + '<g class="' + cls + '" data-state="' + pose + '"'
+        + ' style="--hue:200' + lookVars(look) + '">'
+        + charMarkup(900, { name: who, state: pose, hue: 200, look: look })
+        + '</g></svg>';
+      var cap = document.createElement('p');
+      cap.className = 'dz-cap'; cap.textContent = label;
+      box.appendChild(art); box.appendChild(cap);
+      return box;
+    }
+
+    /* Written the way SEED_LOOKS is written - single quotes, the file's key
+       order, head last - so it pastes straight in instead of arriving as JSON
+       that has to be tidied. */
+    function entry(){
+      var order = ['skin','hair','beard','top','collar','lip','stripe','stripe2',
+                   'lens','hairStyle','beardStyle','glasses','freckles','badge','faceTurn'];
+      var bits = [];
+      order.forEach(function(k){
+        if(look[k] == null) return;
+        bits.push(k + ':' + (typeof look[k] === 'string' ? "'" + look[k] + "'" : look[k]));
+      });
+      if(look.head) bits.push('head:{ rx:' + look.head.rx + ', ry:' + look.head.ry + ' }');
+      var lead = "  '" + who + "':" + new Array(Math.max(2, 10 - who.length)).join(' ') + '{ ';
+      var lines = [], line = '';
+      bits.forEach(function(b, i){
+        var piece = b + (i < bits.length - 1 ? ', ' : '');
+        if(line.length + piece.length > 62){ lines.push(line); line = ''; }
+        line += piece;
+      });
+      if(line) lines.push(line);
+      var pad = new Array(lead.length + 1).join(' ');
+      return lead + lines.join('\n' + pad) + ' },';
+    }
+
+    function draw(){
+      stage.innerHTML = '';
+      stage.appendChild(shot(132, 'true wheel size'));
+      stage.appendChild(shot(300, 'large'));
+      stage.appendChild(drop);
+      var h = look.head || { rx: 12, ry: 16 };
+      if(headOut){
+        headOut.textContent = 'ratio ' + (h.rx / h.ry).toFixed(3)
+          + '  ·  area ' + (h.rx * h.ry).toFixed(0) + ' (the others all sit at 196)'
+          + '  ·  everyone else runs 0.64 to 0.78';
+      }
+      out.textContent = entry();
+      /* bubbles size themselves once they are in the document */
+      stage.querySelectorAll('.bubble-aim').forEach(function(g){
+        if(SAY[pose]){
+          g.querySelector('.say-text').textContent = SAY[pose][0];
+          aimBubble(g, 0);
+          fitBubble(g);
+        }
+      });
+    }
+
+    drop.addEventListener('dragover', function(e){ e.preventDefault(); });
+    drop.addEventListener('drop', function(e){
+      e.preventDefault();
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(!f) return;
+      var r = new FileReader();
+      r.onload = function(){ drop.innerHTML = '<img alt="reference">';
+        drop.querySelector('img').src = r.result; };
+      r.readAsDataURL(f);
+    });
+
+    var h1 = document.createElement('h2');
+    h1.textContent = 'design - drag until it looks like them, then copy the entry';
+    right.appendChild(stage);
+    wrap.appendChild(panel);
+    wrap.appendChild(right);
+    page.appendChild(h1);
+    page.appendChild(wrap);
+    var h2 = document.createElement('h2');
+    h2.textContent = 'paste this into SEED_LOOKS';
+    page.appendChild(h2);
+    page.appendChild(out);
+
+    document.body.innerHTML = '';
+    document.body.appendChild(page);
+    rebuild();
+    document.title = 'Name Wheel - design';
+  }
+
+  if(/\bdesign\b/.test(location.search)) setTimeout(design, 0);
+  else if(/\binspect\b/.test(location.search)) setTimeout(inspect, 0);
 
   buildCharacters(opening);
   render();

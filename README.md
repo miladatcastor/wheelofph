@@ -44,6 +44,13 @@ so now and then he draws them straight back, gives the wheel a full ceremonial
 lap and changes nothing. Then he puts his hands on his hips, says something a
 CEO says, and strides off the side of the screen.
 
+## `?design`
+
+Open `index.html?design` to dial in a new character: every colour, hair,
+beard and glasses option live, the head sliders with an area lock, the figure
+drawn at true wheel size and large at once, a drop zone for their photo to
+compare against, and the `SEED_LOOKS` entry written out ready to paste.
+
 ## `?inspect`
 
 Open `index.html?inspect` for the contact sheet: every state on every

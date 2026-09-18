@@ -375,6 +375,21 @@ below it because the ring would otherwise sit inside the hub.
 
 ## Adding a character
 
+**Open `index.html?design` and drag until it looks like them.** A look is only
+eight colours, three picks from the part tables and two head measurements -
+a tiny space. What was slow was never expressing it, it was setting those
+numbers off a photo and finding out at true size that the hair read as horns
+or the head came out 0.80 wide when it wanted 0.69. The editor closes that
+loop: every control live, the character drawn at true wheel size *and* large
+side by side, their photo dropped in next to it, and the `SEED_LOOKS` entry
+written out in the file's own style ready to paste.
+
+Two things in there are worth knowing. **Hold area** keeps `rx * ry` at 196,
+which is the base circle's area and what every existing look sits at - it is
+the thing that stops a new face arriving bigger than everyone else's. And the
+readout under the sliders gives the ratio against the 0.64-0.78 everyone else
+occupies, so a head that is drifting out of family says so while you drag.
+
 Measure, don't eyeball. For each existing character the head aspect, lens box
 (against pupil distance), hairline and beard line were read off a gridded
 photo, and colours sampled from masked regions and then checked by pasting the
