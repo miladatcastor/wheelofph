@@ -240,6 +240,8 @@ body{
 .char[data-state="angry-right"] [data-show~="angry-right"]{display:block}
 .char[data-state="angry-left"]  [data-show~="angry-left"] {display:block}
 .char[data-state="accept"]      [data-show~="accept"]     {display:block}
+.char[data-state="shrug"]       [data-show~="shrug"]      {display:block}
+.char[data-state="facepalm"]    [data-show~="facepalm"]   {display:block}
 .char[data-state="bristle"]     [data-show~="bristle"]    {display:block}
 .char[data-state="gloat"]       [data-show~="gloat"]      {display:block}
 .char[data-state="smug"]        [data-show~="smug"]       {display:block}
@@ -500,6 +502,35 @@ body{
 .ceo[data-phase="decree"]{transform:translateX(5%)}
 .ceo[data-phase="out"]{transform:translateX(100vw)}
 
+/* Two more ways of taking it, because caving is 60% of all landings now and
+   one fixed beat three times in five stops reading as a reaction at all.
+   Both change the OUTLINE, not just the face - at 90px that is the only
+   thing that carries. */
+@keyframes shrugUp{
+  0%  {transform:translateY(2px) scale(.99,1.01); animation-timing-function:cubic-bezier(.2,.85,.4,1)}
+  30% {transform:translateY(-2.6px) scale(1.02,.98); animation-timing-function:ease-in-out}
+  62% {transform:translateY(-2.2px) scale(1.01,.99)}
+  100%{transform:translateY(-.5px) scale(1,1)}
+}
+/* the hand arrives, the head comes down to meet it */
+@keyframes palmUp{
+  0%  {transform:rotate(-46deg); animation-timing-function:cubic-bezier(.25,.9,.4,1)}
+  46% {transform:rotate(5deg);   animation-timing-function:cubic-bezier(.4,0,.4,1)}
+  62% {transform:rotate(-1.5deg)}
+  100%{transform:rotate(0deg)}
+}
+@keyframes palmSink{
+  0%  {transform:translateY(-1.5px) rotate(0deg); animation-timing-function:ease-out}
+  46% {transform:translateY(1.6px) rotate(2.5deg); animation-timing-function:ease-in-out}
+  100%{transform:translateY(1px) rotate(1.5deg)}
+}
+.char[data-state="shrug"] .body-all{transform-box:fill-box;transform-origin:50% 100%;
+  animation:shrugUp 620ms both}
+.char[data-state="facepalm"] .palm{transform-box:fill-box;transform-origin:88% 92%;
+  animation:palmUp 560ms both}
+.char[data-state="facepalm"] .body-all{transform-box:fill-box;transform-origin:50% 100%;
+  animation:palmSink 560ms both}
+
 /* Turning the head. `--turn` comes from the look, so a character with no
    faceTurn never moves and this costs them nothing. It is a TRANSITION, not a
    keyframe animation: he swings his head round as the state changes rather
@@ -573,7 +604,10 @@ body{
   .char[data-state="walk"] .swing-b,
   .char[data-state="walk"] .body-all,
   .char[data-state="decree"] .jab-arm,
-  .char[data-state="decree"] .body-all{animation:none}
+  .char[data-state="decree"] .body-all,
+  .char[data-state="shrug"] .body-all,
+  .char[data-state="facepalm"] .palm,
+  .char[data-state="facepalm"] .body-all{animation:none}
   .char .face-turn,
   .char .hair-turn{transition:none}
 }
@@ -766,7 +800,8 @@ body{
 
     /* legs, drawn behind the torso so only the stubs show */
     + '<g data-show="idle nervous panic doomed relieved gloat smug cheer ring'
-      + ' gotcha-left gotcha-right angry-left angry-right accept bristle stomp">'
+      + ' gotcha-left gotcha-right angry-left angry-right accept bristle stomp'
+      + ' shrug facepalm">'
       + limb('M-4.5,11 v10') + foot(-4.5,21)
       + limb('M4.5,11 v10')  + foot(4.5,21)
     + '</g>'
@@ -835,7 +870,7 @@ body{
       + '<g data-show="angry-left angry-right bristle">'
         + '<path class="brow" d="M-10,-32 l6.5,3.2"/><path class="brow" d="M10,-32 l-6.5,3.2"/>'
       + '</g>'
-      + '<g data-show="accept">'
+      + '<g data-show="accept shrug facepalm">'
         + '<path class="brow" d="M-10,-28.8 l6.5,-2.4"/><path class="brow" d="M10,-28.8 l-6.5,-2.4"/>'
       + '</g>'
       /* raised, and high enough to clear a sunglasses frame - at the shared
@@ -846,7 +881,7 @@ body{
       + '</g>'
 
       /* eyes */
-      + '<g data-show="idle nervous stomp ring walk decree verdict">'
+      + '<g data-show="idle nervous stomp ring walk decree verdict shrug">'
         + '<circle class="eye" cx="-5" cy="-25" r="1.9"/><circle class="eye" cx="5" cy="-25" r="1.9"/>'
       + '</g>'
       + '<g data-show="panic">'
@@ -864,7 +899,7 @@ body{
         + '<ellipse class="eye" cx="-5" cy="-25" rx="2.3" ry="1.35"/>'
         + '<ellipse class="eye" cx="5" cy="-25" rx="2.3" ry="1.35"/>'
       + '</g>'
-      + '<g data-show="accept">'
+      + '<g data-show="accept facepalm">'
         + '<path class="shut" d="M-8.6,-25.4 q3.6,3.4 7.2,0"/><path class="shut" d="M1.4,-25.4 q3.6,3.4 7.2,0"/>'
       + '</g>'
 
@@ -876,7 +911,9 @@ body{
       + '<g data-show="idle ring"><path class="mouth" d="M-3.6,-17.6 q3.6,2.6 7.2,0"/></g>'
       + '<g data-show="stomp"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
       + '<g data-show="angry-left angry-right bristle"><path class="mouth" d="M-4,-16.6 q4,-2.9 8,0"/></g>'
-      + '<g data-show="accept"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
+      + '<g data-show="accept shrug"><path class="mouth" d="M-3.6,-17 h7.2"/></g>'
+      /* the only part of the face a facepalm leaves showing */
+      + '<g data-show="facepalm"><path class="mouth" d="M-3.8,-16.3 q3.8,-2.6 7.6,0"/></g>'
       + '<g data-show="nervous"><g class="jaw"><ellipse class="mouth-f" cx="0" cy="-17" rx="4" ry="2.8"/></g></g>'
       + '<g data-show="panic"><ellipse class="mouth-f" cx="0" cy="-17.2" rx="2.9" ry="3.3"/></g>'
       + '<g data-show="doomed"><ellipse class="mouth-f" cx="0" cy="-16.8" rx="3.9" ry="4.7"/></g>'
@@ -1001,6 +1038,25 @@ body{
       + limb('M11,-4 C16,0 15,4 10,4.5')     + hand(10,4.5)
     + '</g>'
 
+    /* Shrug: elbows in, forearms out, hands wide. The silhouette goes from
+       about 36 units across to 50, which is what makes it read at 90px - a
+       shrug done with the shoulders alone would be invisible there. */
+    + '<g data-show="shrug">'
+      + limb('M-11,-4 C-14,1 -18,1 -21,-3') + hand(-21,-3)
+      + limb('M11,-4 C14,1 18,1 21,-3')     + hand(21,-3)
+    + '</g>'
+    /* Facepalm: a hand circle of r=4 cannot hide a head of r=14, so the palm
+       is its own ellipse. It carries a transform ATTRIBUTE and the animation
+       sits on the parent group - never both on one element. */
+    + '<g data-show="facepalm">'
+      + limb(ARM_DOWN_L) + hand(-14,9)
+      + '<g class="palm">'
+        + limb('M11,-5 C15,-13 10,-21 4,-24')
+        + '<ellipse class="hand" cx="0.6" cy="-25.2" rx="7.9" ry="5.3"'
+          + ' transform="rotate(-16 0.6 -25.2)"/>'
+      + '</g>'
+    + '</g>'
+
     /* cheer: both arms up */
     + '<g data-show="cheer">'
       + limb('M-11,-5 C-16,-11 -18,-18 -17,-25') + hand(-17,-25)
@@ -1079,6 +1135,8 @@ body{
     'angry-right': ['no way', 'nope', 'your turn'],
     'angry-left':  ['no way', 'nope', 'your turn'],
     'accept':      ['fine', 'figures', 'ok fine'],
+    'shrug':       ['sure', 'fair enough', 'go on then'],
+    'facepalm':    ['why me', 'every time', 'of course'],
     'bristle':     ['no way', 'hang on', 'nope'],
     'gotcha-right':['hah!', 'later', 'bye then', 'sucker'],
     /* The CEO, on his way out. He is an upright overlay rather than a slice,
@@ -1935,17 +1993,36 @@ body{
     if(pick === 'ceo'){ ceoIntervene(p); return; }
 
     /* They square up either way; whether anything comes of it is the joke. */
+    /* Three ways of taking it. At 60% of landings a single fixed beat stops
+       reading as a reaction, so this is the same medicine the bystanders got
+       when they all celebrated identically.
+
+       The variety that matters most is not the final pose, it is whether
+       there is a WIND-UP at all: cave and facepalm square up first, a shrug
+       does not bother. That changes the opening half second rather than only
+       the last frame, which is the half you actually notice repeating. The
+       result line follows suit - "almost passed it on" is only true if they
+       put up a fight.
+
+       Not a layer on the odds: the outcome is still one flat pick, and this
+       only decides how that one outcome is performed. */
     if(pick === 'accept'){
-      setState(p, 'bristle');
+      var TAKES = [
+        { pose:'accept',   fight:true,  line:' almost passed it on. Still ' },
+        { pose:'facepalm', fight:true,  line:' almost passed it on. Still ' },
+        { pose:'shrug',    fight:false, line:' took it on the chin. Still ' }
+      ];
+      var take = TAKES[Math.floor(Math.random() * TAKES.length)];
       var giveUp = function(){
-        setState(p, 'accept');
-        resultEl.textContent = name + ' almost passed it on. Still ' + name + '.';
+        setState(p, take.pose);
+        resultEl.textContent = name + take.line + name + '.';
         spinBtn.disabled = false;
       };
-      if(reduceMotion()) giveUp();
+      if(reduceMotion() || !take.fight){ giveUp(); return; }
+      setState(p, 'bristle');
       /* the wind-up holds its pose at the end, so let it actually finish and
-         hang there a beat before they cave */
-      else settled(charEls[p]).then(function(){
+         hang there a beat before they give in */
+      settled(charEls[p]).then(function(){
         shoveTimer = setTimeout(giveUp, 260);
       });
       return;
@@ -2079,7 +2156,7 @@ body{
   var ALL_STATES = ['idle','nervous','panic','doomed','relieved',
                     'stomp','angry-right','angry-left','bristle','accept',
                     'gloat','smug','cheer','gotcha-right','gotcha-left','ring',
-                    'walk','decree','verdict'];
+                    'walk','decree','verdict','shrug','facepalm'];
 
   /* ------------------------------------------------------------------
      ?inspect - the contact sheet.

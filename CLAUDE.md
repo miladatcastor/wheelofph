@@ -242,6 +242,24 @@ Everyone else who escapes gets one of four reactions - relieved, gloat, smug, ch
 dealt from a shuffled deck, so with four or fewer survivors no two react the
 same way. Drawing independently gave three the same pose about half the time.
 
+Caving is performed three ways - cave, facepalm, shrug - picked uniformly.
+At 60% of landings one fixed beat stops reading as a reaction at all, which
+is the same thing that happened to the bystanders before they got four
+celebrations. It is not a layer on the odds: the outcome is still one flat
+pick, and this only decides how that one outcome is played.
+
+The variety that earns its keep is not the final pose, it is **whether there
+is a wind-up**. Cave and facepalm square up first; a shrug does not bother.
+That changes the opening half second rather than the last frame, and the
+opening is the half you notice repeating. The result line follows - "almost
+passed it on" is only true if they actually put up a fight.
+
+Both new poses change the OUTLINE, because at 90px nothing else carries: the
+shrug takes the body from about 36 units across to 50, and the facepalm needs
+its own ellipse for the palm since a hand circle of r=4 cannot hide a head of
+r=14. At 6.4 it still left an eye showing and read as a hand near a face; 7.9
+covers both eyes and reads as a facepalm.
+
 Every landing ends one of exactly four ways: push right, push left, cave, or
 the CEO. Caving is the common one; the three that pass it on or bring Derk in
 split what is left, equally.

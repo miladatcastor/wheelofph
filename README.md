@@ -30,7 +30,9 @@ under the pointer panics, its neighbours go nervous, everyone else idles.
 On stop the winner is doomed, and **every** landing then ends one of exactly
 three ways: the winner shoves the wheel a notch right, shoves it a notch left
 (landing a neighbour in it), or squares up and thinks better of it. Taking the
-hit is much the likeliest ending. Whoever shoves it away points at the person they just landed it on.
+hit is much the likeliest ending, and it is played three ways — caving, a
+facepalm, or a shrug that does not bother squaring up at all.
+Whoever shoves it away points at the person they just landed it on.
 Everyone who escapes gets one of four reactions — relieved, gloating, smug or
 cheering — dealt so that no two of them react the same way.
 
