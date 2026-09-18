@@ -1427,6 +1427,7 @@ body{
     var chordC = n === 1 ? 2*rChar  : 2*rChar  * Math.sin(Math.PI/n);
     var chordL = n === 1 ? 2*rLabel : 2*rLabel * Math.sin(Math.PI/n);
     var scale  = Math.max(0.42, Math.min(1.15, chordC/56));
+    charScale  = scale;   /* the CEO sizes his speech bubble against this */
     /* Where the ring has to sit for the linking hands to actually touch. The
        arm points along the character's own tangent, not along the chord to
        the next one, so it is NOT simply half the gap between them - sizing it
@@ -1589,7 +1590,24 @@ body{
   var CEO_HOLD = 1700;  /* long enough to read his line before he walks off */
   /* He draws 2.87x the size of a wheel character, so his bubble would too.
      0.348 would match theirs exactly; he gets a shade more than that. */
-  var CEO_SAY_SCALE = 0.45;  /* long enough to read his line before he walks off */
+  /* His bubble is built in HIS units and he draws far larger than a wheel
+     character, so at 1:1 it swallows the wheel. This is worked out from the
+     geometry rather than fitted by eye, which matters because the old fitted
+     0.45 was only ever right at five names - with twenty-four the characters
+     shrink to a third of the size and his bubble would have towered over
+     them.
+
+     A wheel character renders at charScale x (stage/400) px per unit; he
+     renders at (CEO_WIDTH x stage) / CEO_VB. The stage cancels, leaving the
+     ratio below. x1.3 because the CEO is allowed a slightly bigger bubble
+     than everyone else - that part is taste, the rest is arithmetic.
+     At five names this comes out at 0.45, which is what was there before. */
+  var CEO_VB    = 63;     /* his svg viewBox width, see buildCeo */
+  var CEO_WIDTH = 0.52;   /* .ceo{width:52%} of the stage */
+  var charScale = 1;
+  function ceoSayScale(){
+    return 1.3 * charScale * CEO_VB / (400 * CEO_WIDTH);
+  }
 
   function buildCeo(){
     ceoEl.innerHTML =
@@ -1701,7 +1719,7 @@ body{
            outright - he is an upright overlay, not a slice, so there is no
            slice angle or wheel rotation to undo. */
         setCeoState('verdict');
-        speak(ceoCharEl, 'verdict', 0, 0, CEO_SAY_SCALE);
+        speak(ceoCharEl, 'verdict', 0, 0, ceoSayScale());
         ceoTimer = setTimeout(leave, fast ? 0 : CEO_HOLD);
       }, fast ? 0 : ms + 60);
     }
@@ -2058,14 +2076,85 @@ body{
       }
     }
     box.querySelector('svg').appendChild(g);
-    if(atFraction != null){
-      var secs = -(atFraction * (animMs(state, '.body-all') || 1000) / 1000);
-      g.querySelectorAll('*').forEach(function(el){
-        el.style.animationDelay = secs + 's';
-        el.style.animationPlayState = 'paused';
-      });
-    }
+    /* Deferred like the bubbles are, and for the same reason: the duration
+       has to be read off the Animations the browser built, which do not
+       exist until this is in the document. It used to call the old
+       two-argument animMs(state, sel); when that became animMs(el) the call
+       silently fell through to its 1000ms default and every strip here was
+       frozen against the wrong clock. */
+    if(atFraction != null) g.setAttribute('data-frac', atFraction);
     return box;
+  }
+
+  /* Hold a character at one moment of its current animation. */
+  function freezeAt(g, fraction){
+    var ms = animMs(g) || 1000;
+    var secs = -(fraction * ms / 1000);
+    g.querySelectorAll('*').forEach(function(el){
+      el.style.animationDelay = secs + 's';
+      el.style.animationPlayState = 'paused';
+    });
+    return ms;
+  }
+
+  /* Everything here was fitted at five names, and five is the one count that
+     will always look right. This rebuilds the wheel at each size that matters
+     and checks the figures still fit and still do not collide.
+
+     Note what it does NOT assert. Bounding boxes of rotated characters
+     overlap from about twelve names up while the drawings are plainly
+     separate, so overlap is measured centre to centre against body width
+     instead. Rotated label boxes read as poking past the rim for the same
+     reason, so labels are left out of the containment check. Both were
+     checked by eye at 8, 12 and 24 before being written off. */
+  function nameCountAudit(){
+    var bad = [], keep = characters.map(function(c){ return c.name; });
+    var pool = ['Ana','Ben','Caz','Dev','Eli','Fay','Gus','Hal','Ivy','Jon','Kim','Lou',
+                'Mia','Ned','Oli','Pat','Quin','Rai','Sam','Tal','Uma','Vic','Wes','Zed'];
+
+    [2,3,5,8,12,18,24].forEach(function(n){
+      buildCharacters(pool.slice(0, n));
+      render();
+      for(var i = 0; i < characters.length; i++) setState(i, 'idle');
+      var at = n + ' names: ';
+      var rim = svg.querySelector('.rim');
+      if(!rim){ bad.push(at + 'no wheel rendered'); return; }
+      if(svg.querySelectorAll('.char').length !== n) bad.push(at + 'wrong character count');
+      if(svg.querySelectorAll('.slice').length !== n) bad.push(at + 'wrong slice count');
+      if(svg.querySelectorAll('.label').length !== n) bad.push(at + 'wrong label count');
+
+      var rb = rim.getBoundingClientRect();
+      var cx = rb.left + rb.width/2, cy = rb.top + rb.height/2, R = rb.width/2;
+      var mid = [];
+      Array.prototype.forEach.call(svg.querySelectorAll('.char'), function(el){
+        var r = el.getBoundingClientRect();
+        /* The DRAWN width, not the bounding box. getBoundingClientRect is
+           axis-aligned, so a character rotated onto its side reports a box
+           far wider than the figure and every neighbour looks like a
+           collision. getBBox is in the character's own frame; scaling it by
+           the CTM gives the real width on screen whatever angle it sits at. */
+        var ctm = el.getScreenCTM();
+        var body = el.getBBox().width * Math.hypot(ctm.a, ctm.b);
+        mid.push([r.left + r.width/2, r.top + r.height/2, body]);
+        var out = Math.max(Math.hypot(r.left-cx, r.top-cy),  Math.hypot(r.right-cx, r.top-cy),
+                           Math.hypot(r.left-cx, r.bottom-cy), Math.hypot(r.right-cx, r.bottom-cy)) - R;
+        if(out > 0) bad.push(at + 'a character reaches ' + Math.round(out) + 'px past the rim');
+        if(body < 14) bad.push(at + 'characters down to ' + Math.round(body) + 'px wide');
+      });
+      for(var k = 0; k < mid.length && mid.length > 1; k++){
+        var a = mid[k], b = mid[(k + 1) % mid.length];
+        var gap = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if(gap < a[2] * 0.9){
+          bad.push(at + 'neighbours ' + Math.round(gap) + 'px apart for a '
+                      + Math.round(a[2]) + 'px body');
+        }
+      }
+    });
+
+    buildCharacters(keep);
+    render();
+    for(var j = 0; j < characters.length; j++) setState(j, 'idle');
+    return bad;
   }
 
   /* The wheel can be geometrically wrong while still LOOKING round, which is
@@ -2299,6 +2388,11 @@ body{
       page.appendChild(p);
     }
 
+    note(nameCountAudit(),
+         'name-count audit clean - 2 to 24 names all fit inside the rim '
+         + 'without the figures colliding.',
+         'name count');
+
     note(layoutAudit(),
          'layout audit clean - the stage stays square, the halo stays round '
          + 'and the pointer stays on the rim from 380px to 1920px.',
@@ -2351,10 +2445,52 @@ body{
       });
     });
 
+    /* A scrubber. Nothing else in this project can show an animation moving:
+       a background tab does not run them at all, and headless Chrome
+       advances timers but not the animation clock, so every frame in here
+       has to be stepped by hand. Pick a state, drag, watch. */
+    row('scrub - drag to step through any state', function(line){
+      var bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;align-items:center;gap:10px;'
+                        + 'flex-wrap:wrap;margin-bottom:8px;width:100%';
+      var pick = document.createElement('select');
+      ALL_STATES.forEach(function(st){
+        var o = document.createElement('option');
+        o.value = st; o.textContent = st;
+        if(st === 'stomp') o.selected = true;
+        pick.appendChild(o);
+      });
+      var slider = document.createElement('input');
+      slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.value = '0';
+      slider.style.width = '300px';
+      var readout = document.createElement('b');
+      var stage = document.createElement('div');
+      bar.appendChild(pick); bar.appendChild(slider); bar.appendChild(readout);
+      line.appendChild(bar);
+      line.appendChild(stage);
+
+      function draw(){
+        var f = (+slider.value) / 100;
+        stage.innerHTML = '';
+        var box = cell(charEls[0], pick.value, null, 300, '');
+        stage.appendChild(box);
+        var g = box.querySelector('.char');
+        var ms = freezeAt(g, f);
+        readout.textContent = pick.value + '  ' + Math.round(f * 100) + '%'
+                            + (ms ? '  (' + Math.round(ms) + 'ms)' : '  (static)');
+      }
+      pick.addEventListener('change', draw);
+      slider.addEventListener('input', draw);
+      draw();
+    });
+
     document.body.innerHTML = '';
     document.body.appendChild(page);
     /* now they are laid out, the boxes can be measured and sized */
     page.querySelectorAll('[data-refit]').forEach(fitBubble);
+    page.querySelectorAll('[data-frac]').forEach(function(g){
+      freezeAt(g, parseFloat(g.getAttribute('data-frac')));
+    });
     document.title = 'Name Wheel - inspect';
   }
 

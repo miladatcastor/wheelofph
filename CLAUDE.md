@@ -192,6 +192,30 @@ refuses to make a window narrower than 500px, so 380 is only reachable this
 way. Verified both directions - clean as it stands, and red on every affected
 viewport when the container-query sizing is disabled.
 
+`?inspect` also runs a **name-count audit** (2 to 24 names: everything inside
+the rim, figures not colliding, nothing collapsed) and offers a **scrubber** -
+a state picker and a slider that steps any animation by hand. The scrubber is
+not a luxury: a background tab does not run animations at all and headless
+Chrome advances timers but not the animation clock, so stepping frames is the
+only way anything here can be watched moving.
+
+Two measurement traps the name-count audit had to get around, both of which
+caught me first:
+
+- **`getBoundingClientRect` is axis-aligned.** A character rotated onto its
+  side reports a box far wider than the drawing, so every neighbour looks
+  like a collision from about twelve names up. Use `getBBox()` scaled by the
+  CTM for the width that is actually drawn.
+- Rotated **label** boxes read as poking past the rim for the same reason, so
+  labels are left out of the containment check.
+
+**Sizes that were fitted at five names have to be derived, not typed in.**
+`ceoSayScale()` is the worked example: his bubble is built in his units and he
+draws far larger than a wheel character, so the ratio comes from
+`charScale * CEO_VB / (400 * CEO_WIDTH)`. It lands on 0.45 at five names,
+which is exactly what had been hand-fitted there - and on 0.17 at twenty-four,
+where the typed-in value would have towered over the characters.
+
 ## Animation has to survive a screen share
 
 This gets shared as a Chrome tab on calls, which caps at ~30fps and adapts
