@@ -27,6 +27,14 @@ The character under the pointer crouches and body-slams the wheel; it takes off
 on the landing frame. While it spins, fear travels round the ring — the slice
 under the pointer panics, its neighbours go nervous, everyone else idles.
 
+It does not coast to a halt along one smooth curve. It sheds speed in stages —
+brake, hold, brake, hold — so it keeps looking like it is about to settle and
+then carries on, and the last second of every spin is spent easing through the
+final few degrees. Three landings in five are left straddling a line: the
+pointer comes to rest hard against the divider between two names, near enough
+that nobody can call it until it has actually stopped. Where it stops is
+untouched by any of this — only how it gets there.
+
 On stop the winner is doomed, and **every** landing then ends one of exactly
 three ways: the winner shoves the wheel a notch right, shoves it a notch left
 (landing a neighbour in it), or squares up and thinks better of it. Taking the

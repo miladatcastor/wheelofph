@@ -1567,16 +1567,29 @@ body{
      `rotation` stays the single source of truth. Resolves true if it ran to
      the end, false if something cancelled it. */
   var wheelAnim = null;
-  function turnWheel(from, to, ms, easing){
+  /* One place cancels whatever the wheel was doing and owns the inline
+     transform. It takes a list of {angle, offset, easing} stops rather than a
+     from/to pair, because the spin proper is a staged decay and a near miss
+     needs a stop of its own where it appears to settle on the wrong name.
+     turnWheel() is the two-stop case that everything except launch() wants. */
+  function runWheel(stops, ms){
     if(wheelAnim){ wheelAnim.cancel(); wheelAnim = null; }
-    wheel.style.transform = 'rotate(' + to + 'deg)';
+    wheel.style.transform =
+      'rotate(' + stops[stops.length - 1].angle + 'deg)';
     if(!ms) return Promise.resolve(true);
-    wheelAnim = wheel.animate(
-      [{ transform: 'rotate(' + from + 'deg)' },
-       { transform: 'rotate(' + to + 'deg)' }],
-      { duration: ms, easing: easing || 'linear', fill: 'none' });
+    wheelAnim = wheel.animate(stops.map(function(s){
+      var f = { transform: 'rotate(' + s.angle + 'deg)' };
+      if(s.offset != null) f.offset = s.offset;
+      if(s.easing) f.easing = s.easing;
+      return f;
+    }), { duration: ms, fill: 'none' });
     return wheelAnim.finished.then(function(){ return true; },
                                    function(){ return false; });
+  }
+
+  function turnWheel(from, to, ms, easing){
+    return runWheel([{ angle: from, offset: 0, easing: easing || 'linear' },
+                     { angle: to,   offset: 1 }], ms);
   }
 
   /* Freeze it where it visually is, not where it was heading. Read the angle
@@ -1930,26 +1943,137 @@ body{
       reduceMotion() ? 0 : Math.round(stompMs * STOMP_IMPACT_PCT));
   }
 
+  /* The spin sheds speed in stages rather than along one curve, so it reads
+     as slowing, and slowing again, and slowing again rather than as a single
+     smooth glide - while never jerking, which is a different thing and the
+     first mistake made here.
+
+     Writing each stage as (fraction of the clock, fraction of the angle) and
+     easing it out - the obvious way - gives every stage a curve that dies to
+     a standstill at its own end, so the wheel braked to 80deg/s and then
+     leapt back to 1300 at each boundary, four times a spin. That looks like
+     dropped frames, not friction. So it is written as a VELOCITY profile
+     instead and the keyframes are derived from it, which is the only way the
+     stages join up with no step in the speed.
+
+     But a profile whose speed falls evenly joins back up into exactly the
+     smooth glide it was meant to replace. What you notice is not a step in
+     the speed, it is a step in the RATE of slowing: brake, hold, brake,
+     hold. So the drops between these speeds are deliberately uneven and the
+     stages alternate between shedding most of a speed and very nearly
+     keeping it. Nothing ever jumps; what changes is how hard it is braking.
+
+     SPIN_SPEEDS is the speed at each stage boundary in arbitrary units,
+     normalised against whatever distance this spin has to cover, and
+     SPIN_STAGES how long each stage lasts as a fraction of the clock. The
+     angles fall out of the two, and so do the easings: a stage running
+     v_in -> v_out about its own mean is cubic-bezier(1/3, v_in/3m, 2/3,
+     1 - v_out/3m). Change the feel by changing the two lists; nothing else
+     needs to agree with them.
+
+     The last stage is the one that matters. It is a quarter of the clock
+     spent on about two percent of the angle - roughly half a slice at five
+     names - so the final second is the pointer easing the last few degrees
+     towards a line, which is where CLOSE_CALL does its work. */
+  var SPIN_STAGES = [0.14, 0.14, 0.14, 0.16, 0.18, 0.24];
+  var SPIN_SPEEDS = [12, 3.2, 2.6, 1.0, 0.8, 0.22, 0];
+
+  /* How often the wheel is left straddling the answer: the pointer comes to
+     rest hard against the line between two names, so which side it is on is
+     not readable until it has actually stopped moving.
+
+     This is presentation, NOT a layer on the odds, and must never become
+     one. The landing slice is already decided before this runs - all it does
+     is move the resting angle WITHIN that slice, from anywhere inside it to
+     up against one of its two edges. Which edge is a coin flip, so it stops
+     just short of the next name as often as it stops just past the last one.
+
+     The margin is what makes it work and it is bounded on both sides.
+     targetIndex() rounds, so anything at or past half a slice from centre
+     belongs to the neighbour: 0.47 is as close to the line as it can be put
+     without the pick becoming a rounding accident, and it must stay clear of
+     0.5 for the same reason the pick is taken from `rotation` and not from
+     the matrix. The far end, 0.34, is the point past which it stops looking
+     like a close call at all. */
+  var CLOSE_CALL = 0.6;
+  var CLOSE_EDGE = [0.34, 0.47];
+
+  /* Returns the keyframe stops and the clock for one spin. Pure apart from
+     the draws, so spinAudit() can run it thousands of times and check the
+     invariants that a jittered profile could silently break. */
+  function spinPlan(from, to, n){
+    var seg = 360/n, i;
+    var slice = Math.round(-to/seg);            /* the landing, already drawn */
+    var close = Math.random() < CLOSE_CALL;
+
+    if(close){
+      var edge = CLOSE_EDGE[0]
+               + Math.random() * (CLOSE_EDGE[1] - CLOSE_EDGE[0]);
+      to = -(slice + (Math.random() < 0.5 ? -edge : edge)) * seg;
+    }
+
+    var fastMs = 5600 + Math.random()*900;
+    var fast   = to - from;
+
+    /* Jitter both lists, then let everything else fall out of them. +-8% on
+       the stage lengths and the interior speeds is enough that no two spins
+       shed speed at quite the same moments, and still leaves the closest
+       pair of speeds - the ones a coasting stage runs between - clear of
+       each other on every draw. */
+    var dur = [], vel = [], clock = 0;
+    for(i=0;i<SPIN_STAGES.length;i++){
+      dur.push(SPIN_STAGES[i] * (1 + (Math.random()-0.5)*0.16));
+      clock += dur[i];
+    }
+    for(i=0;i<SPIN_SPEEDS.length;i++){
+      vel.push(SPIN_SPEEDS[i] *
+        (i > 0 && i < SPIN_SPEEDS.length-1 ? 1 + (Math.random()-0.5)*0.16 : 1));
+    }
+    var area = 0;
+    for(i=0;i<dur.length;i++) area += dur[i]/clock * (vel[i]+vel[i+1])/2;
+
+    var stops = [], at = from, t = 0;
+    for(i=0;i<dur.length;i++){
+      var d = dur[i]/clock, m = (vel[i]+vel[i+1])/2;
+      stops.push({ angle: at, offset: t,
+                   easing: 'cubic-bezier(.333,' + (vel[i]/(3*m)).toFixed(3)
+                         + ',.667,' + (1 - vel[i+1]/(3*m)).toFixed(3) + ')' });
+      at += fast * d * m / area;
+      t  += d;
+    }
+    stops.push({ angle: to, offset: 1 });
+    /* `to` and the slice come back out: a close call moves the resting angle,
+       and `rotation` has to stay the single source of truth for where the
+       wheel is - while still picking the name that was drawn before it. */
+    return { stops: stops, ms: Math.round(fastMs), close: close,
+             to: to, slice: slice };
+  }
+
   function launch(){
     if(!spinning) return;
     wheel.classList.add('spinning');
-    var dur = 4800 + Math.random()*1200;
     var spunFrom = rotation;
     rotation += 360*(7 + Math.floor(Math.random()*4)) + Math.random()*360;
 
     /* Launches hard and sheds speed the way a wheel does under friction: the
-       first half second is a blur, then it decelerates into roughly 2.5s slow
-       enough to follow one character round and watch the hands go up.
+       first half second is a blur, then it decelerates through the stages of
+       SPIN_SPEEDS into a couple of seconds slow enough to follow one
+       character round and watch the hands go up.
 
        The trap is the tail, not the launch. Rotation is a fixed budget, so
        spending more of it up front leaves less for the end: a faster start on
        the same clock buys nothing but a longer crawl, which is the "sprint and
        a stall" an earlier curve was replaced for. It is paid for instead by
-       turning more (7-10) in less time (4.8-6.0s), which keeps the crawl below
-       40deg/s down to 0.7s, shorter than the 1.2s it used to be. Work the
-       numbers before touching any of the three - they only hold together. */
-    turnWheel(spunFrom, rotation, Math.round(dur), 'cubic-bezier(.12,.78,.42,1)')
-      .then(function(ran){ if(ran) stop(); });
+       turning more (7-10) in the time available. Work the numbers before
+       touching any of the three - they only hold together.
+
+       What the tail buys is the close call: the last stage is a crawl by
+       design, so when CLOSE_CALL has parked the landing against a line the
+       pointer spends the final second easing towards it and nobody can call
+       it until it stops. */
+    var plan = spinPlan(spunFrom, rotation, characters.length);
+    rotation = plan.to;
+    runWheel(plan.stops, plan.ms).then(function(ran){ if(ran) stop(); });
 
     /* let the leg finish its swing before the fear loop repaints everyone */
     cancelAnimationFrame(rafId);
@@ -1957,7 +2081,7 @@ body{
     holdTimer = setTimeout(tick,
       reduceMotion() ? 0 : Math.round(stompMs * (1 - STOMP_IMPACT_PCT)) + 40);
     clearTimeout(stopTimer);
-    stopTimer = setTimeout(stop, dur + 80);
+    stopTimer = setTimeout(stop, plan.ms + 80);
   }
 
   /* Four ways of not being the one picked. Dealt from a shuffled deck rather
@@ -2451,6 +2575,86 @@ body{
     return hits.filter(function(v, i, a){ return a.indexOf(v) === i; });
   }
 
+  /* spinPlan() is jittered arithmetic with no visible output until the wheel
+     is already turning, which is exactly the shape of bug this file keeps
+     producing: it looks plausible in a screenshot and is wrong one draw in
+     four. So run it thousands of times across every list length and assert
+     the things that have to hold however the draws land. */
+  function bezOf(e){
+    var m = /^cubic-bezier\(([\d.-]+),([\d.-]+),([\d.-]+),([\d.-]+)\)$/.exec(e);
+    return m && [+m[1], +m[2], +m[3], +m[4]];
+  }
+
+  function spinAudit(){
+    var bad = [], near = 0, all = 0;
+    for(var n = 2; n <= 24; n++){
+      for(var t = 0; t < 400; t++){
+        var from = Math.random()*360;
+        var to   = from + 360*(7 + Math.floor(Math.random()*4))
+                        + Math.random()*360;
+        var plan = spinPlan(from, to, n);
+        var st   = plan.stops, seg = 360/n, why = null;
+
+        for(var i = 1; i < st.length; i++){
+          if(!(st[i].offset > st[i-1].offset)) why = 'offsets not increasing';
+          if(!(st[i].angle  > st[i-1].angle))  why = 'wheel turns back';
+        }
+        if(st[0].offset !== 0 || st[0].angle !== from) why = 'bad first stop';
+        if(st[st.length-1].offset !== 1)              why = 'bad last offset';
+        if(st[st.length-1].angle !== plan.to)         why = 'overshoots';
+
+        /* Every stage slower than the one before. Means only - the easing
+           cannot change a stage's mean, so this says nothing whatever about
+           what happens inside one, which is the next check's job. */
+        var prev = Infinity, mean = [];
+        for(var j = 1; j < st.length; j++){
+          var v = (st[j].angle - st[j-1].angle)
+                / ((st[j].offset - st[j-1].offset) * plan.ms);
+          mean.push(v);
+          if(v >= prev) why = 'stage ' + j + ' does not slow down';
+          prev = v;
+        }
+
+        /* No step in the speed at the joins. This is the one that catches
+           the lurch - the first version of this profile eased every stage
+           out to a standstill at its own end and then leapt back to 1300
+           deg/s in the next, four times a spin, and a means-only check
+           passes that happily because easing does not move a mean. A curve
+           leaves a stage at mean*(1-y2)/(1-x2) and enters the next at
+           mean*y1/x1, so read them off the curves and compare. */
+        for(j = 0; j + 1 < mean.length; j++){
+          var e1 = bezOf(st[j].easing), e2 = bezOf(st[j+1].easing);
+          if(!e1 || !e2) continue;
+          var out = mean[j]   * (1 - e1[3]) / (1 - e1[2]);
+          var inn = mean[j+1] * e2[1] / e2[0];
+          if(Math.abs(out - inn) > 0.02 * Math.max(out, inn) + 1e-9)
+            why = 'speed steps at join ' + (j+1);
+        }
+
+        /* THE pick has to survive the close call moving where it rests */
+        if(mod(Math.round(-plan.to/seg), n) !== mod(plan.slice, n))
+          why = 'the close call moved the answer';
+
+        /* ...and a close call really does leave it against a line. The
+           bounds are written out rather than read back from CLOSE_EDGE,
+           which would make the check say only that the code agrees with
+           itself - it passed a CLOSE_EDGE of [0.05, 0.12] when it did. */
+        var off = Math.abs(-plan.to/seg - Math.round(-plan.to/seg));
+        if(plan.close && (off < 0.3 || off > 0.48))
+          why = 'close call not against a line (' + off.toFixed(3) + ')';
+        if(off > 0.5) why = 'rests outside its own slice';
+
+        all++; if(plan.close) near++;
+        if(why){ bad.push(n + ' names: ' + why); break; }
+      }
+    }
+    var rate = near/all;
+    if(Math.abs(rate - CLOSE_CALL) > 0.04)
+      bad.push('close-call rate ' + Math.round(rate*100) + '%, wanted '
+               + Math.round(CLOSE_CALL*100) + '%');
+    return bad;
+  }
+
   function bubbleAudit(){
     var bad = [], host = charEls[0];
     if(!host) return ['no characters to measure'];
@@ -2514,6 +2718,11 @@ body{
          'transform audit clean - no element carries both an SVG transform '
          + 'attribute and a CSS transform (animation or transition).',
          'transform trap');
+
+    note(spinAudit(),
+         'spin audit clean - every spin sheds speed stage by stage with no '
+         + 'step at the joins, and no close call moves the answer.',
+         'spin profile');
 
     var speech = bubbleAudit();
     note(speech,

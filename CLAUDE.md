@@ -227,6 +227,63 @@ When a gesture needs to be legible at 90px, change the whole silhouette. A
 swinging limb is not enough — the kick was replaced by a jump because a leg is
 small, low, and half-hidden by the torso.
 
+**The spin is a velocity profile, and the keyframes are derived from it.**
+Written the obvious way - each stage as (fraction of the clock, fraction of
+the angle), eased out - every stage's curve dies to a standstill at its own
+end, so the wheel braked to 80deg/s and then leapt back to 1300 in the next
+one, four times a spin. That reads as dropped frames, not as friction. So
+`SPIN_SPEEDS` gives the speed at each stage boundary and `SPIN_STAGES` how
+long each stage lasts; the angles fall out of the two, and so do the easings
+(a stage running v_in -> v_out about its own mean is `cubic-bezier(1/3,
+v_in/3m, 2/3, 1 - v_out/3m)`).
+
+The opposite mistake is just as easy: a profile whose speed falls *evenly*
+joins back up into exactly the single smooth glide it was meant to replace.
+What anyone notices is not a step in the speed - an instant drop looks like a
+glitch too - it is a step in the RATE of slowing. So the drops between those
+speeds are deliberately uneven and the stages alternate between shedding most
+of a speed and very nearly keeping it. Both failures were sitting in the file
+at different points in the same afternoon.
+
+**A means-only audit cannot see any of that, and said it could.** Easing does
+not move a stage's mean, so checking that each stage is slower than the last
+passes the lurch version happily - it passed while the audit text claimed it
+checked "no step at the joins". `spinAudit()` now parses each
+`cubic-bezier` back out and compares `mean*(1-y2)/(1-x2)` leaving one stage
+against `mean*y1/x1` entering the next. Verified by reinstating the original
+flat easing and watching it flag join 5.
+
+**An audit that reads the constant it is checking says only that the code
+agrees with itself.** The close-call bound was checked against `CLOSE_EDGE`,
+so setting `CLOSE_EDGE` to `[0.05, 0.12]` - landings nowhere near a line -
+passed clean. The bounds are written out in the audit now. Assume any check
+phrased in terms of the thing it audits is vacuous until a deliberately wrong
+value makes it red.
+
+**The close call moves where the wheel rests, never what it picks.**
+`CLOSE_CALL` (0.6) parks the landing angle against the line between two
+names so nobody can call it until the wheel stops. The slice is drawn before
+this runs and the nudge only moves the resting angle *within* that slice;
+which edge is a coin flip. `CLOSE_EDGE` tops out at **0.47 of a slice from
+centre, and the 0.5 it stays under is load-bearing**: `targetIndex()` rounds,
+so at 0.5 the pick becomes a rounding accident. `spinAudit()` checks the
+index against the one `spinPlan()` drew, every time.
+
+This is presentation, not a layer on the odds, for the same reason `TAKES` is
+not one - it decides how an outcome is played, not which outcome. If you ever
+find yourself making it a second roll over *who*, stop.
+
+**What was tried first and is wrong: a false stop.** The wheel settled on the
+previous name, hung for half a second, then crept a whole slice onto the
+real one. It measured beautifully and it is not what a wheel does - the ask
+was that you cannot tell which side of a line it is on, which is a smooth
+approach to a boundary, not a stop and a second move. Two things from that
+attempt are worth keeping if it ever comes back: a false stop a fixed 0.75
+of a slice back lands on the *same* index for a quarter of landings, because
+`targetIndex()` rounds; and pegging a creep below the mean of the final
+stage - a stage that is already a crawl to zero - pushed every such spin past
+eight seconds.
+
 Two poses that lead to different outcomes must look different *from the start*.
 Caving used to replay the full shove lunge before slumping, so it looked like a
 push that failed to move the wheel. It now has its own wind-up that cocks the
