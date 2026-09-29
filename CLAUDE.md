@@ -354,6 +354,119 @@ which is recoverable by reloading, now that there is no textarea to restore
 them from. Resist adding a toggle back for the same reason you resist adding a
 probability gate.
 
+## The pointer and the sound
+
+The pointer is a teardrop on a pin: the round base is the hinge, the dark
+pin at its centre is what it swings on, and the outline is the same ink as
+the characters and the rim. As the next divider comes within the last few
+degrees of wheel travel it is pushed over, further the closer the line, and
+at the crossing it is let go and rings back with one damped wobble
+(`flapAngle()`, numbers in `FLAP`). It runs whenever the wheel moves - spin,
+shove, the CEO's lap and the idle drift. The bend lives on the `.flap`
+group; the placement stays on `.pointer`. It pivots on the pin's centre in
+viewBox units (`transform-box:view-box`), never on a corner of its own
+bounding box, which moves with the shape; the pointer audit reads the
+pin's centre back and checks the origin against it. A flat triangle was
+first, and was rejected on sight: nothing about it said it could move.
+
+**It is drawn in wheel units, and its tip is inside the wheel.** It was a
+28px CSS triangle at a fixed -8px, which touched the rim at one stage size
+and floated clear of it on a big screen - and a flap that touches nothing
+cannot be pushed by a line. It is an inline SVG now, 10% of the stage wide
+so one viewBox unit is one wheel unit, with the tip 26 units down: past
+the rim (outer edge 11.5, inner 16.5) and into the slices where the
+dividers end. `layoutAudit()` checks the tip sits 2-5% of the wheel past
+the rim's outer edge, at every viewport. Two things it had to get around:
+the base sits at the stage top rather than above it, because the stage can
+be 15px from the top of the window and a longer flap lost its base to the
+window edge; and the rim is measured off the unrotated `.wheel-wrap` with
+`R`, not off the circle, because `getBoundingClientRect` on an SVG circle
+inside a rotated wheel returns the rotated bbox square, 41% too wide at
+45 degrees.
+
+**`FLAP.push` is degrees of wheel travel, not a fraction of a slice.** The
+first version bent the flap over the last third of a slice, which at five
+names had it leaning towards a line still a quarter turn away - that reads
+as anticipation, not contact. A peg meets a 25-unit flap at radius 174
+over about four degrees whatever the name count, so the zone is a fixed
+seven. The cost is that only the closer half of close calls rests visibly
+bent; the tell is real when it happens rather than there every time.
+The flap's direction is the way the wheel LAST MOVED, not the sign of the
+last change to `rotation`: `endDrift()` lowers `rotation` without the wheel
+going anywhere, and taking that as a reversal snapped the flap during the
+stomp. A real reversal (a shove to the left) lets the flap go from wherever
+it was, on the same spring as a crossing.
+
+**The shove and Derk's turn overshoot, and that is a reversal.** Both ease
+with a y past 1, so the wheel rolls a few degrees beyond the target and
+settles back. Reading each frame's step in the direction of the target
+turned that settle into a near-full turn the other way and fired a burst
+of up to n clicks on every shove - heard as a second sound. The step is
+the shortest signed one now, and the target only breaks the tie for a
+step over 180 degrees, which is a low frame rate at the launch and never
+a reversal.
+
+**The loop cannot be watched from automation, so it is driven by hand.**
+`rimStep(live, now)` takes its inputs, and `rimAudit()` in `?inspect`
+feeds it a forward run over a line, an overshoot and settle, a park short
+of a line, the endDrift re-base, a slice backwards and a change of list,
+checking the bend and the count at each. Verified red by taking the direction from
+`rotation` again: it reports the snap from 19.8 degrees to 0. A hidden tab
+runs neither animation frames nor the wheel's animation, and Chrome can be
+hidden even when a screenshot of it works, so this audit is the only
+evidence there is for the live wiring.
+
+There is one sound: the wheel clicking past each divider, and it plays
+whenever anything but the idle drift moves the wheel past a line - the
+spin, a character shoving it on a slice, Derk turning it, lap included. Nothing plays under the idle ring, for two
+reasons that each hold on their own: a loop under a waiting page is what
+gets a tab closed, and the browser refuses audio until the user has clicked
+something, which on load nobody has. There is no mute for the same reason
+there are no switches - it lasts the few seconds of a spin the user just
+asked for, and the tab's own mute covers the rest.
+
+The click is synthesised (`click()`: a few ms of band-passed noise over a
+short low knock), so the file stays one file with no assets and the sound is
+the handful of numbers in `TICK`. A recorded sample would sound better and
+would be a binary lump nobody can edit.
+
+**It is driven off the live angle, and that makes it the one other
+legitimate reader of `liveAngle()` besides the fear loop.** `rimStep()`
+runs every frame from page load, counts the dividers the pointer has
+crossed since the last frame with `dividers()`, bends the flap, and books
+one click per divider on the audio clock unless the wheel carries
+`resting`, which is the drift's own class. Flap and click are one
+calculation, so they cannot disagree. So it follows the staged braking, the
+close call and any name count with no duration written down twice.
+Precomputing the click times from the spin plan would be more exact, and
+would re-derive the easing maths in JS - the duplicated-timing trap again.
+It can see at most one turn per frame (`mod(live - last, 360)`), which
+holds down to about 8fps and is the limit the fear loop already has.
+
+Things that are load-bearing in there:
+
+- **The AudioContext is made in `spin()`, on the click's own stack.** Chrome
+  is content with a sticky activation; Safari wants the `resume()` on the
+  gesture itself, and `launch()` runs from a timeout.
+- **A wrong envelope is silent, not broken** - the same failure as a bad
+  keyframe. `soundAudit()` in `?inspect` renders one click through an
+  `OfflineAudioContext` and checks it made a sound, is over inside 100ms
+  and does not clip; and it checks that `dividers()` steps exactly where
+  `pointerIndex()` changes, because clicks on slice CENTRES would sound
+  perfectly plausible. Both verified red: `burstMs` at 500 flags the tail,
+  and dropping the half-slice offset flags every name count.
+- **The Play button in `?inspect` is the only way to hear it.** A
+  screenshot cannot hear and neither can automation; the tab has to be in
+  front and the button clicked. It runs a spin's worth of clicks, slowing
+  the way the wheel does, through the same `click()` the wheel uses.
+- **Derk has a `.char` too.** Counting `.char` elements for the name count
+  gives one more than `characters.length`, which made a correct click count
+  look eight short. Count `characters`, never the DOM.
+
+Screen share carries tab audio only when "share tab audio" is ticked, which
+it usually is not. So the tick is a bonus, never information, and anything
+added here has to stay that way.
+
 ## The CEO
 
 His name is Derk, and it is on a clip-on name tag on his shirt. The tag is

@@ -112,14 +112,38 @@ body{
 .wheel-wrap{position:absolute;inset:0;border-radius:50%;box-shadow:0 12px 34px var(--shadow)}
 .wheel{width:100%;height:100%;will-change:transform;transform:rotate(0deg)}
 .wheel svg{display:block;width:100%;height:100%;overflow:visible}
+/* The pointer is drawn in the wheel's own units: 10% of the stage is 40 of
+   the 400 the wheel is drawn in, so one unit in its viewBox is one unit of
+   wheel. It used to be a 28px triangle at a fixed -8px, which touched the
+   rim at one stage size and floated clear of it on a big screen - and a
+   flap that is not touching anything cannot be pushed by a line going
+   past. The tip now reaches 26 units down, past the rim (outer edge at
+   11.5, inner at 16.5) and into the slices, where the dividers actually
+   are. layoutAudit() checks that depth as a fraction of the wheel. The base
+   sits one unit inside the stage: the stage can be as little as 15px from
+   the top of the viewport, and a longer flap hanging above it lost its
+   base to the window edge. */
 .pointer{
-  position:absolute;top:-8px;left:50%;transform:translateX(-50%);
-  width:0;height:0;z-index:3;
-  border-left:15px solid transparent;
-  border-right:15px solid transparent;
-  border-top:28px solid var(--accent);
-  filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));
+  position:absolute;top:.25%;left:50%;width:10%;transform:translateX(-50%);
+  z-index:3;overflow:visible;display:block;
 }
+/* The flap: a teardrop on a pin, bent by each divider on the way past -
+   see rimStep(). The round base is the hinge and the pin is what it swings
+   on, so the flick has a visible cause; the outline is the same ink as the
+   characters and the rim. The group carries the bend and nothing else; the
+   placement is on its parent above, for the same reason every animated
+   group in the SVG has a parent carrying the transform attribute. It
+   pivots on the pin's centre in viewBox units (transform-box:view-box), not
+   on a corner of its own bounding box, which would move with the shape.
+   Not scoped to .pointer, because ?inspect clones the same flap. */
+.flap{transform-box:view-box;transform-origin:20px 6px;will-change:transform}
+.flap-body{fill:var(--accent);stroke:var(--stroke);stroke-width:1.4;stroke-linejoin:round;
+  filter:drop-shadow(0 .6px .6px rgba(0,0,0,.35))}
+.pin{fill:var(--stroke)}
+.ins-ptr{width:46px;height:46px;background:var(--panel);border-radius:6px;
+  display:flex;align-items:flex-start;justify-content:center;padding-top:4px;
+  box-sizing:border-box}
+.ins-ptr svg{display:block;width:40px;height:40px;overflow:visible}
 .hub{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   width:17%;aspect-ratio:1;border-radius:50%;
@@ -624,6 +648,8 @@ body{
 .ins-audit{margin:0;padding:9px 12px;border-radius:9px;font-weight:650;
   background:#e3f0e3;color:#1f5c2e;border:1px solid #b9d9bd}
 .ins-audit.bad{background:#fbe4e2;color:#8c231a;border-color:#eab4ae}
+.ins-btn{font:inherit;font-weight:650;padding:6px 16px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 
 /* ---------- ?design - dial a character in against the photo ---------- */
 .dz{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
@@ -660,7 +686,7 @@ body{
   <div class="layout">
     <div class="col">
       <div class="stage">
-        <div class="pointer" aria-hidden="true"></div>
+        <svg class="pointer" viewBox="0 0 40 26" aria-hidden="true"><g class="flap"><path class="flap-body" d="M14.6,7.4 A5.6,5.6 0 1 1 25.4,7.4 L21.4,23.4 Q20,26.4 18.6,23.4 Z"/><circle class="pin" cx="20" cy="6" r="1.7"/></g></svg>
         <div class="wheel-wrap">
           <div class="wheel" id="wheel">
             <svg id="svg" viewBox="0 0 400 400" role="img" aria-label="Wheel of names"></svg>
@@ -1653,6 +1679,239 @@ body{
     if(spinning) rafId = requestAnimationFrame(tick);
   }
 
+  /* ------------------------------------------------------------------
+     The rim: the pointer is a flap, and the flap is where the click
+     comes from.
+
+     A wheel clicks past every divider as it slows because the divider
+     pushes the flapper aside and it springs back. Both halves of that are
+     in here, driven by one reading of the wheel's LIVE angle per frame -
+     rimFrame() is the one loop that reads liveAngle() apart from the fear
+     loop, and for the same reason: this wants where the wheel IS, not
+     where it is going.
+
+     The flap runs whenever the wheel moves at all: the spin, the shove,
+     the CEO's lap, and the slow idle drift, which bends it once every few
+     seconds and shows what it is for before anyone has pressed anything.
+     Each frame works out how far the next divider is, in the direction of
+     travel; inside the last FLAP.push of a slice the flap is pushed over,
+     further the closer the line, and at the crossing it is let go and
+     rings back with one damped wobble (flapAngle()). At the launch that is
+     a blur; in the crawl you watch it bend; in a close call it rests
+     visibly against the line until the wheel stops.
+
+     The click plays whenever the wheel is moved past a line by anything
+     but the idle drift: the spin, a character shoving it on a slice, Derk
+     turning it - his lap included. Nothing plays under the idle ring - a
+     click every ten seconds under a waiting page is what gets a tab closed,
+     and the browser refuses audio until the user has clicked something
+     anyway. The gate is the wheel's own `resting` class, which is exactly
+     "the drift is what is turning it". There is no mute for the
+     same reason there are no switches: the sound lasts the spin the user
+     just asked for and the tab's own mute covers the rest. It is
+     synthesised (a few ms of filtered noise over a short low knock), so the
+     file stays one file with no assets and the sound is the numbers in
+     TICK.
+
+     Working the click times out from the spin plan up front would be more
+     exact, and would re-derive the easing maths in JS, which is the
+     duplicated-timing trap this file has already paid for. Counting
+     crossings off the live angle instead means the flap and the click
+     cannot disagree: they are one calculation.
+
+     Each frame's step is the shortest signed one, so a small reversal - the
+     overshoot the shove and Derk's turn both settle back from - is read as
+     a reversal; `rotation`, the target, only breaks the tie for a step
+     over 180 degrees, which is a low frame rate at the launch and never a
+     reversal. That holds down to about 270 degrees a frame, or 11fps at
+     the launch peak. The flap's own direction is the way the wheel LAST
+     MOVED rather than the sign of the target, because
+     endDrift() lowers `rotation` onto the frozen angle without the wheel
+     going anywhere, and taking that as a reversal made the flap snap
+     straight and back again during the stomp. A real reversal lets the
+     flap go from wherever it was, the same spring as a crossing.
+
+     A wrong envelope fails exactly the way a bad keyframe does: no error,
+     just silence. soundAudit() in ?inspect renders a click offline and
+     listens to it, and checks the divider arithmetic against the fear
+     loop's own index, because clicks on slice CENTRES would sound
+     perfectly plausible. flapAudit() checks the pivot is at the base and
+     that flapAngle() pushes, releases and settles.
+  ------------------------------------------------------------------ */
+  var TICK = {
+    band:    2600,   /* Hz - where the noise burst sits */
+    q:       1.2,
+    burstMs: 22,     /* how long the burst rings */
+    knockHz: 190,    /* the low body under it */
+    knockMs: 40,
+    gain:    0.45
+  };
+  /* `push` is in degrees OF WHEEL TRAVEL, not a fraction of a slice: a line
+     bends the flap over the same few degrees whether there are two names
+     or twenty-four, because it is the geometry of a peg meeting a flap
+     that swings 19 units below its pin at radius 175 that decides it. Bent
+     right over, the tip has moved 19 * sin(28deg) = 9 units sideways, which
+     is 3 degrees of arc at that radius; the peg has to get within about
+     that before it touches, and drags the tip the rest of the way. A fraction of a slice was the
+     first version and had the flap leaning towards a line still a quarter
+     turn away at five names, which read as anticipation, not contact. */
+  var FLAP = {
+    push: 7,      /* degrees of wheel travel over which a line bends it */
+    max:  28,     /* degrees, bent right over at the line */
+    ring: 150,    /* ms for the spring-back to die away */
+    hz:   9       /* how fast it wobbles on the way */
+  };
+  var flap = document.querySelector('.pointer .flap');
+  var audio = null, noise = null, tickOut = null;
+  var rimLive = 0, rimAt = 0, rimEdge = 0, rimN = 0, rimRot = 0;
+  var rimDir = 1, flapDir = 1, released = -1e9, springAmp = 0, bend = 0;
+
+  /* Made inside spin(), which is a click handler: browsers refuse audio
+     before a gesture, and Safari wants the resume() on the gesture's own
+     stack rather than in a later timeout. Null where there is no Web Audio,
+     and the click then simply does not play - the flap still does. */
+  function audioCtx(){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    if(!audio){
+      try{ audio = new AC(); }catch(e){ return null; }
+    }
+    if(audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+
+  /* Everything live goes through one gain and a compressor, because at the
+     launch a dozen clicks overlap and would otherwise add up past full
+     scale. The offline audit deliberately skips this and listens to one
+     click bare. */
+  function tickDest(ctx){
+    if(tickOut && tickOut.context === ctx) return tickOut;
+    var comp = ctx.createDynamicsCompressor();
+    comp.connect(ctx.destination);
+    tickOut = ctx.createGain();
+    tickOut.gain.value = 0.8;
+    tickOut.connect(comp);
+    return tickOut;
+  }
+
+  /* One click at `at` on ctx's clock, into `dest`. Shared by the live wheel,
+     the ?inspect audition and the offline audit, so what is tested is what
+     plays. */
+  function click(ctx, dest, at){
+    if(!noise || noise.sampleRate !== ctx.sampleRate){
+      noise = ctx.createBuffer(1, Math.round(ctx.sampleRate * 0.1), ctx.sampleRate);
+      var d = noise.getChannelData(0);
+      for(var i=0;i<d.length;i++) d[i] = Math.random()*2 - 1;
+    }
+    var vary = 1 + (Math.random()-0.5)*0.16;   /* no two clicks quite alike */
+    var burst = TICK.burstMs/1000, knock = TICK.knockMs/1000;
+
+    var src = ctx.createBufferSource();
+    src.buffer = noise;
+    var band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = TICK.band * vary;
+    band.Q.value = TICK.q;
+    var env = ctx.createGain();
+    env.gain.setValueAtTime(TICK.gain, at);
+    env.gain.exponentialRampToValueAtTime(0.001, at + burst);
+    src.connect(band); band.connect(env); env.connect(dest);
+    src.start(at); src.stop(at + burst + 0.01);
+
+    var osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(TICK.knockHz * vary, at);
+    osc.frequency.exponentialRampToValueAtTime(TICK.knockHz * vary * 0.6, at + knock);
+    var body = ctx.createGain();
+    body.gain.setValueAtTime(TICK.gain * 0.6, at);
+    body.gain.exponentialRampToValueAtTime(0.001, at + knock);
+    osc.connect(body); body.connect(dest);
+    osc.start(at); osc.stop(at + knock + 0.01);
+  }
+
+  /* Dividers sit half a slice off the character centres, so this steps by
+     one exactly where pointerIndex() would change - the difference between
+     two of these is the number of dividers crossed between two angles. */
+  function dividers(angle, n){
+    var seg = 360/n;
+    return Math.floor((angle - seg/2) / seg);
+  }
+
+  /* How far over the flap is pushed, in degrees, with the next line `gap`
+     degrees of wheel travel away. Linear from first touch to the line. */
+  function flapPush(gap){
+    return gap < FLAP.push ? FLAP.max * (1 - gap / FLAP.push) : 0;
+  }
+  /* The spring-back, `since` ms after being let go, as a fraction of where
+     it was let go from: one damped wobble, gone by 2 * FLAP.ring. */
+  function flapSpring(since){
+    return since < FLAP.ring * 2
+      ? Math.exp(-3 * since / FLAP.ring) * Math.cos(2 * Math.PI * FLAP.hz * since / 1000)
+      : 0;
+  }
+  /* Both together, going forward and let go from fully bent - what the
+     wheel does at every line, and what ?inspect draws. A peg going past
+     bends the flap fully however fast it is going, so the spring starts at
+     FLAP.max whatever the push was a frame earlier. */
+  function flapAngle(gap, since){
+    return flapPush(gap) + FLAP.max * flapSpring(since);
+  }
+
+  /* One reading of the wheel: `live` is where it is, `now` the clock.
+     Called every frame with the real ones, and by rimAudit() with made-up
+     ones, which is the only way this loop can be checked at all. The loop
+     never stops, so a crossing in the animation's final frame is picked up
+     by the frame after it. Returns how many lines went past. */
+  function rimStep(live, now){
+    var n = characters.length;
+    if(!n || !flap) return 0;
+    if(rotation !== rimRot){ rimDir = rotation > rimRot ? 1 : -1; rimRot = rotation; }
+    /* The shortest signed step, with a wrap put back only when the step is
+       large AND against the target. Small reversals are real: the shove and
+       Derk's turn both overshoot and settle back a few degrees, and reading
+       that settle as a near-full turn the other way fired a burst of up to
+       n clicks on every shove. Large steps against the target are not real,
+       because nothing here reverses by more than a few degrees; +200 at a
+       low frame rate reads as -160 and is put back to +200. */
+    var moved = mod(live - rimLive + 180, 360) - 180;
+    if(rimDir > 0 && moved < -90) moved += 360;
+    if(rimDir < 0 && moved >  90) moved -= 360;
+    rimAt += moved;
+    rimLive = live;
+    if(moved && (moved > 0) !== (flapDir > 0)){
+      /* the wheel has turned round: whatever was pushing the flap has gone
+         the other way, so it is let go from wherever it was */
+      flapDir = -flapDir;
+      springAmp = bend; released = now;
+    }
+
+    var edge = dividers(rimAt, n), crossed = 0;
+    if(n === rimN) crossed = Math.min(Math.abs(edge - rimEdge), 12);
+    rimEdge = edge; rimN = n;   /* a changed list is not a crossing */
+
+    if(crossed){
+      springAmp = flapDir * FLAP.max; released = now;
+      if(audio && !wheel.classList.contains('resting')){
+        var at = audio.currentTime, dest = tickDest(audio);
+        /* several in one frame - the launch, or many names - are spread over
+           the coming frame rather than piled onto one instant */
+        for(var k=0;k<crossed;k++) click(audio, dest, at + k * 0.016 / crossed);
+      }
+    }
+
+    var seg = 360/n, u = (rimAt - seg/2) / seg, frac = u - Math.floor(u);
+    var gap = (flapDir > 0 ? 1 - frac : frac) * seg;   /* degrees to the next line, the way it is going */
+    bend = flapDir * flapPush(gap) + springAmp * flapSpring(now - released);
+    flap.style.transform = 'rotate(' + bend.toFixed(2) + 'deg)';
+    return crossed;
+  }
+
+  function rimFrame(){
+    requestAnimationFrame(rimFrame);
+    rimStep(liveAngle(), performance.now());
+  }
+
+
   /* Only keyframe PERCENTAGES live in the JS. Nothing fires on reaching a
      keyframe, so a mid-animation cue has to be a fraction of the duration -
      but the duration is read off the running Animation now (animMs), never
@@ -1922,6 +2181,7 @@ body{
   function spin(){
     ceoReset();
     if(spinning || !characters.length) return;
+    audioCtx();   /* on the click's own stack - see the tick */
     endDrift();
     spinning = true;
     spinBtn.disabled = true;
@@ -2406,32 +2666,49 @@ body{
     var stage = document.querySelector('.stage');
     var wrap = document.querySelector('.wheel-wrap');
     var rim = document.querySelector('.rim');
-    var ptr = document.querySelector('.pointer');
+    var ptr = document.querySelector('.pointer .flap');
     var res = document.querySelector('.result');
     if(!app || !stage || !wrap || !rim || !ptr || !res) return ['nothing to measure'];
 
     var bad = [], w0 = app.style.width, h0 = app.style.height;
+    var bent = ptr.style.transform;
+    ptr.style.transform = '';   /* measure it straight, not mid-bend */
     [[380,820],[414,896],[520,1000],[560,613],[768,500],[900,450],
      [1280,800],[1920,1080]].forEach(function(size){
       app.style.width  = size[0] + 'px';
       app.style.height = size[1] + 'px';
       var st = stage.getBoundingClientRect(), wr = wrap.getBoundingClientRect(),
-          rm = rim.getBoundingClientRect(),   pt = ptr.getBoundingClientRect(),
+          pt = ptr.getBoundingClientRect(),
           rs = res.getBoundingClientRect(),   ap = app.getBoundingClientRect();
+      /* The rim is measured off the wrap, not off the circle. The wheel is
+         always turning, and getBoundingClientRect on an SVG circle returns
+         its bbox square put through the rotation - at 45deg it comes out 41%
+         too wide and its top 200px above where the rim is. The wrap is the
+         same square, unrotated, and the circle of radius R sits in it. */
+      var rm = { top:   wr.top + wr.height * (CY - R - 2.5) / 400,
+                 width: wr.width * (2 * R + 5) / 400 };
       var at = size[0] + 'x' + size[1] + ': ';
       if(Math.abs(st.width - st.height) > 1.5){
         bad.push(at + 'stage ' + Math.round(st.width) + 'x' + Math.round(st.height)
                     + ' is not square');
       }
       if(Math.abs(wr.width - wr.height) > 1.5) bad.push(at + 'the halo is an ellipse');
-      /* the pointer has to sit ON the rim, not float above a too-tall box */
-      if(pt.bottom - rm.top > 26) bad.push(at + 'the pointer is '
-        + Math.round(pt.bottom - rm.top) + 'px off the rim');
+      /* The tip has to reach INTO the wheel: past the rim's outer edge by
+         2-5% of the wheel's width, which is where the dividers end. It is
+         drawn about 4% deep; less than 2% and the lines go past without
+         touching it, more than 5% and it is a stake through the names. Read
+         as a fraction of the rim so the check is the same at every size,
+         and written out here rather than derived from the pointer's own
+         numbers, which would check nothing. */
+      var depth = (pt.bottom - rm.top) / rm.width;
+      if(depth < 0.02 || depth > 0.05) bad.push(at + 'the pointer tip is '
+        + (depth * 100).toFixed(1) + '% into the wheel');
       if(st.left < ap.left - 0.5 || st.right > ap.right + 0.5) bad.push(at + 'the wheel is wider than the app');
       if(rs.bottom > ap.bottom + 0.5) bad.push(at + 'the result line is pushed off');
-      if(rm.width < 80) bad.push(at + 'the wheel has collapsed to ' + Math.round(rm.width) + 'px');
+      if(wr.width < 80) bad.push(at + 'the wheel has collapsed to ' + Math.round(wr.width) + 'px');
     });
     app.style.width = w0; app.style.height = h0;
+    ptr.style.transform = bent;
     return bad;
   }
 
@@ -2677,6 +2954,164 @@ body{
     return bad;
   }
 
+  /* The flap is a pure function of two numbers, so most of this is checking
+     the shape of that function: pushed over at the line, let go into a
+     wobble rather than a slump, and still by the time FLAP.ring says. The
+     rest is the one DOM fact it depends on - the pivot is at the base, on
+     the flap itself, with the placement on its parent. */
+  function flapAudit(){
+    var bad = [];
+    if(Math.abs(flapAngle(FLAP.push, 1e9)) > 0.01) bad.push('bent before the push zone');
+    if(Math.abs(flapAngle(360, 1e9)) > 0.01) bad.push('not straight at rest');
+    if(Math.abs(flapAngle(0, 1e9) - FLAP.max) > 0.01) bad.push('not fully bent at the line');
+    if(Math.abs(flapAngle(360, 0) - FLAP.max) > 0.01) bad.push('the release does not start where the push ended');
+    var over = 0, t;
+    for(t = 0; t <= FLAP.ring; t += 1) over = Math.min(over, flapAngle(360, t));
+    if(over > -0.1 * FLAP.max) bad.push('the spring does not overshoot (' + over.toFixed(1) + 'deg)');
+    if(Math.abs(flapAngle(360, FLAP.ring)) > 0.06 * FLAP.max) bad.push('still ringing at FLAP.ring');
+    for(t = FLAP.push; t > 0; t -= FLAP.push / 30){
+      if(flapAngle(t - FLAP.push / 30, 1e9) < flapAngle(t, 1e9)) { bad.push('the push is not monotone'); break; }
+    }
+    var ptr = document.querySelector('.pointer'), fl = ptr && ptr.querySelector('.flap');
+    if(!ptr || !fl) return bad.concat(['no flap on the pointer']);
+    /* transform-box:view-box, so the origin reads in viewBox units and has
+       to be the pin's centre - a bbox-relative origin would wander with the
+       shape, and a wrong one swings the whole flap sideways */
+    var pin = fl.querySelector('.pin');
+    var origin = getComputedStyle(fl).transformOrigin.split(' ').map(parseFloat);
+    if(!pin) bad.push('no pin on the flap');
+    else if(Math.abs(origin[0] - pin.cx.baseVal.value) > 0.05
+         || Math.abs(origin[1] - pin.cy.baseVal.value) > 0.05){
+      bad.push('the flap pivots at ' + origin.join(',') + ', not on its pin at '
+               + pin.cx.baseVal.value + ',' + pin.cy.baseVal.value);
+    }
+    if(/rotate|matrix\(([^,]+,){4}/.test(getComputedStyle(ptr).transform)
+       && !/^matrix\(1, 0, 0, 1,/.test(getComputedStyle(ptr).transform)){
+      bad.push('the pointer itself is rotated - the bend belongs on the flap');
+    }
+    return bad;
+  }
+
+  /* Drives rimStep() by hand through the moves that have to come out
+     right. The live loop cannot be watched from a hidden tab, or from
+     automation at all, and the endDrift case was a visible snap that only
+     reasoning caught - so every case here is one the wheel actually does.
+     Runs on the real flap and the real `rotation`, and puts both back. */
+  function rimAudit(){
+    var bad = [];
+    if(!flap) return ['no flap'];
+    var keep = [rotation, rimLive, rimAt, rimEdge, rimN, rimRot, rimDir, flapDir,
+                released, springAmp, bend, flap.style.transform];
+    var n = characters.length, seg = 360/n, t = 1000, a, crossed, peak, low;
+    function deg(){ return parseFloat(flap.style.transform.replace(/[^-\d.]/g, '')) || 0; }
+
+    /* at rest on a character centre */
+    rotation = 0; rimRot = 0; rimDir = 1; flapDir = 1; rimLive = 0; rimAt = 0;
+    rimN = n; rimEdge = dividers(0, n); released = -1e9; springAmp = 0; bend = 0;
+    rimStep(0, t);
+    if(Math.abs(deg()) > 0.01) bad.push('bent at rest');
+
+    /* forward, up to the line: bends, does not count */
+    rotation = 360; crossed = 0; peak = 0;
+    for(a = 0.25; a < seg/2; a += 0.25){ t += 16; crossed += rimStep(a, t); peak = Math.max(peak, deg()); }
+    if(crossed) bad.push('counted ' + crossed + ' before reaching the line');
+    if(peak < FLAP.max * 0.9) bad.push('only bent ' + peak.toFixed(1) + 'deg at the line');
+    if(deg() <= 0) bad.push('bent the wrong way going forward');
+
+    /* over it: one line, let go, overshoots, settles */
+    t += 16; crossed = rimStep(seg/2 + 1, t);
+    if(crossed !== 1) bad.push('crossing one line counted ' + crossed);
+    low = 0;
+    for(a = 0; a < FLAP.ring; a += 16){ t += 16; rimStep(seg/2 + 2, t); low = Math.min(low, deg()); }
+    if(low >= 0) bad.push('no overshoot after the line');
+    t += FLAP.ring * 2; rimStep(seg/2 + 2, t);
+    if(Math.abs(deg()) > 0.5) bad.push('still ' + deg().toFixed(1) + 'deg after the spring should have died');
+
+    /* a shove's overshoot: a few degrees past the target and back is a
+       settle, not a turn the other way - no line, no burst, no snap */
+    rotation = seg; crossed = 0;
+    [seg * 0.7, seg * 0.9, seg + 4, seg + 1, seg].forEach(function(at){
+      t += 16; crossed += rimStep(at, t);
+    });
+    if(crossed) bad.push('an overshoot and settle counted ' + crossed + ' lines');
+    t += FLAP.ring * 3; rimStep(seg, t);
+    if(Math.abs(deg()) > 0.5) bad.push('bent ' + deg().toFixed(1) + 'deg after settling on a centre');
+
+    /* parked short of the next line, as a close call can be: stays bent */
+    var parked = seg * 1.5 - FLAP.push * 0.3;
+    t += 16; rimStep(parked, t); t += FLAP.ring * 3; rimStep(parked, t);
+    var before = deg();
+    if(before < FLAP.max * 0.6) bad.push('parked ' + (FLAP.push * 0.3).toFixed(1) + 'deg from the line and only ' + before.toFixed(1) + 'deg bent');
+
+    /* endDrift: the target is lowered onto the frozen angle, nothing moves */
+    rotation = parked; t += 16; rimStep(parked, t);
+    if(Math.abs(deg() - before) > 0.01) bad.push('re-basing rotation snapped the flap from ' + before.toFixed(1) + ' to ' + deg().toFixed(1));
+
+    /* a shove to the left: runs backwards a slice, bends the other way, one line */
+    rotation = parked - seg; crossed = 0; low = 0;
+    for(a = parked - 0.25; a > parked - seg; a -= 0.25){ t += 16; crossed += rimStep(a, t); low = Math.min(low, deg()); }
+    if(crossed !== 1) bad.push('a slice backwards counted ' + crossed + ' lines');
+    if(low > -FLAP.max * 0.9) bad.push('going backwards only bent to ' + low.toFixed(1) + 'deg');
+
+    /* the list changing under it is not a crossing */
+    rimN = n + 1; t += 16;
+    if(rimStep(parked - seg, t)) bad.push('a changed list counted as a crossing');
+
+    rotation = keep[0]; rimLive = keep[1]; rimAt = keep[2]; rimEdge = keep[3];
+    rimN = keep[4]; rimRot = keep[5]; rimDir = keep[6]; flapDir = keep[7];
+    released = keep[8]; springAmp = keep[9]; bend = keep[10];
+    flap.style.transform = keep[11];
+    return bad;
+  }
+
+  /* Renders one click offline and listens to it, since a wrong envelope is
+     silent in exactly the way a bad keyframe is; and checks that the divider
+     count steps exactly where the fear loop's index does, because clicks on
+     slice centres would sound just as plausible. Returns a promise - the
+     render is asynchronous. */
+  function soundAudit(){
+    var bad = [];
+    [2, 3, 5, 7, 12, 24].forEach(function(n){
+      var seg = 360/n, misses = 0, extras = 0;
+      if(dividers(360, n) - dividers(0, n) !== n){
+        bad.push(n + ' names: ' + (dividers(360, n) - dividers(0, n))
+                 + ' dividers in a turn');
+      }
+      for(var a = -400; a < 800; a += 0.37){
+        var b = a + 0.37;
+        var idx = Math.round(-a/seg) !== Math.round(-b/seg);
+        var div = dividers(a, n) !== dividers(b, n);
+        if(idx && !div) misses++;
+        if(div && !idx) extras++;
+      }
+      if(misses) bad.push(n + ' names: ' + misses + ' index changes with no click');
+      if(extras) bad.push(n + ' names: ' + extras + ' clicks with no index change');
+    });
+
+    var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if(!OAC) return Promise.resolve(bad.concat(['no OfflineAudioContext to render with']));
+    var rate = 44100, at = 0.05, ctx;
+    try{
+      ctx = new OAC(1, Math.round(rate * 0.3), rate);
+      click(ctx, ctx.destination, at);
+      return ctx.startRendering().then(function(buf){
+        var d = buf.getChannelData(0), peak = 0, tail = 0;
+        var end = Math.round(rate * (at + 0.1));
+        for(var i=0;i<d.length;i++){
+          var v = Math.abs(d[i]);
+          if(i < end){ if(v > peak) peak = v; }
+          else if(v > tail) tail = v;
+        }
+        if(peak < 0.05) bad.push('click is silent (peak ' + peak.toFixed(3) + ')');
+        if(peak >= 1)   bad.push('click clips (peak ' + peak.toFixed(2) + ')');
+        if(tail > 0.01) bad.push('click rings on past 100ms (' + tail.toFixed(3) + ')');
+        return bad;
+      });
+    }catch(e){
+      return Promise.resolve(bad.concat(['render failed: ' + e]));
+    }
+  }
+
   function inspect(){
     var page = document.createElement('div');
     page.className = 'inspect';
@@ -2694,9 +3129,16 @@ body{
 
     function note(bad, okText, badText){
       var p = document.createElement('p');
-      p.className = 'ins-audit' + (bad.length ? ' bad' : '');
-      p.textContent = bad.length ? badText + ' - ' + bad.join(' | ') : okText;
       page.appendChild(p);
+      function show(list){
+        p.className = 'ins-audit' + (list.length ? ' bad' : '');
+        p.textContent = list.length ? badText + ' - ' + list.join(' | ') : okText;
+      }
+      if(bad && typeof bad.then === 'function'){
+        p.className = 'ins-audit';
+        p.textContent = badText + ' - rendering…';
+        bad.then(show, function(e){ show(['audit failed: ' + e]); });
+      }else show(bad);
     }
 
     note(nameCountAudit(),
@@ -2706,7 +3148,7 @@ body{
 
     note(layoutAudit(),
          'layout audit clean - the stage stays square, the halo stays round '
-         + 'and the pointer stays on the rim from 380px to 1920px.',
+         + 'and the pointer tip reaches into the rim from 380px to 1920px.',
          'layout');
 
     note(animationAudit(),
@@ -2730,6 +3172,22 @@ body{
             return n + SAY[k].length; }, 0)
          + ' lines fit inside their bubble.',
          'speech overflows the bubble');
+
+    note(flapAudit(),
+         'pointer audit clean - the flap pivots on its pin, is bent right '
+         + 'over at the line, and rings back inside ' + FLAP.ring + 'ms.',
+         'pointer');
+
+    note(rimAudit(),
+         'rim audit clean - forward, over a line, through an overshoot, parked '
+         + 'against a line, re-based by endDrift and shoved backwards, the flap '
+         + 'bends the right way and counts exactly the lines it crosses.',
+         'rim');
+
+    note(soundAudit(),
+         'sound audit clean - the click renders, is short, does not clip, '
+         + 'and lands exactly where the pointer index changes.',
+         'sound');
 
     ALL_STATES.forEach(function(st){
       row(st + ' - every character, true wheel size', function(line){
@@ -2759,6 +3217,55 @@ body{
       ALL_STATES.forEach(function(st){
         line.appendChild(cell(charEls[0], st, null, 250, st));
       });
+    });
+
+    /* The flap at true size: bent by an approaching line, then let go. Every
+       cell is flapAngle() at one moment, which is all the wheel does too. */
+    row('pointer - pushed by the next line, then released', function(line){
+      var P = FLAP.push, big = 1e9;
+      var moments = [[P, 'first touch'], [P * .75, 'push 1/4'], [P * .5, 'push 1/2'],
+                     [P * .125, 'push 7/8'], [0, 'at the line'],
+                     [big, 0, 'let go'], [big, 30, '+30ms'], [big, 60, '+60ms'],
+                     [big, 100, '+100ms'], [big, FLAP.ring, '+' + FLAP.ring + 'ms']];
+      var real = document.querySelector('.pointer');
+      moments.forEach(function(m){
+        var gap = m[0], since = m.length === 3 ? m[1] : big, label = m[m.length - 1];
+        var box = document.createElement('div');
+        box.className = 'ins-cell';
+        box.style.width = '46px';
+        var ptr = document.createElement('div');
+        ptr.className = 'ins-ptr';
+        /* the real drawing, so what is shown is what is on the wheel */
+        var copy = real.cloneNode(true);
+        copy.removeAttribute('class');
+        var fl = copy.querySelector('.flap');
+        fl.style.transform = 'rotate(' + flapAngle(gap, since).toFixed(1) + 'deg)';
+        ptr.appendChild(copy);
+        box.appendChild(ptr);
+        var b = document.createElement('b');
+        b.textContent = label;
+        box.appendChild(b);
+        line.appendChild(box);
+      });
+    });
+
+    /* The click can no more be checked from a screenshot than a frame can be
+       heard. This plays a spin's worth of them, slowing the way the wheel
+       does, through the same click() the wheel uses. It is the one thing in
+       ?inspect that needs the tab in front - and a click on the button,
+       which is what lets the audio start. */
+    row('sound - a spin\'s worth of clicks', function(line){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ins-btn';
+      b.textContent = 'Play';
+      b.addEventListener('click', function(){
+        var ctx = audioCtx();
+        if(!ctx) return;
+        var dest = tickDest(ctx), t = ctx.currentTime + 0.05, gap = 0.005;
+        while(gap < 0.9){ click(ctx, dest, t); t += gap; gap *= 1.12; }
+      });
+      line.appendChild(b);
     });
 
     /* A scrubber. Nothing else in this project can show an animation moving:
@@ -3072,6 +3579,7 @@ body{
   else if(/\binspect\b/.test(location.search)) setTimeout(inspect, 0);
 
   buildCharacters(opening);
+  requestAnimationFrame(rimFrame);
   render();
   buildCeo();
   restPose();
